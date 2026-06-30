@@ -149,6 +149,29 @@ export interface PublicProperty {
   cover_image_key?: string;
 }
 
+export type LeadType = 'enquiry' | 'callback' | 'visit';
+export type LeadStatus = 'new' | 'contacted' | 'converted' | 'closed';
+
+export interface Lead {
+  id: string;
+  type: LeadType;
+  name: string;
+  phone: string;
+  email?: string;
+  property_upid?: string;
+  message?: string;
+  status: LeadStatus;
+  created_at: string;
+}
+
+export interface CreateLeadInput {
+  name: string;
+  phone: string;
+  email?: string;
+  property_upid?: string;
+  message?: string;
+}
+
 export interface Property {
   id: string;
   upid: string;
