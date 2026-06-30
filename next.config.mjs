@@ -9,8 +9,8 @@ const nextConfig = {
     ],
   },
   async rewrites() {
-    // Proxy API calls in dev so the browser talks to a same-origin path.
-    const api = process.env.API_PROXY_TARGET || 'http://localhost:8080';
+    // Proxy API calls so the browser talks to a same-origin path.
+    const api = process.env.API_PROXY_TARGET || 'https://cpm-backend-1035324904785.asia-south1.run.app';
     return [{ source: '/api/:path*', destination: `${api}/api/:path*` }];
   },
 };
