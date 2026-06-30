@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Building2, CheckSquare, LayoutDashboard, LifeBuoy, LogOut, Receipt, Users } from 'lucide-react';
+import { Building2, CheckSquare, LayoutDashboard, LifeBuoy, LogOut, Receipt, UserCircle, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
 import type { Role } from '@/lib/types';
@@ -22,6 +22,7 @@ const nav: NavItem[] = [
   { href: '/tenancies', label: 'Tenancies', icon: Users },
   { href: '/invoices', label: 'Invoices', icon: Receipt },
   { href: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['cypress_admin', 'app_admin'] },
+  { href: '/profile', label: 'Profile', icon: UserCircle },
 ];
 
 // Authenticated shell: guards the session and renders the nav + content.

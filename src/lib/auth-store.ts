@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { api, ApiError } from './api-client';
 import { tokenStore } from './token-store';
-import type { AuthResult, Role, UserSummary } from './types';
+import type { AuthResult, Role, UpdateProfileInput, UserSummary } from './types';
 
 interface OtpResult {
   mock: boolean;
@@ -33,6 +33,7 @@ interface AuthState {
   hydrate: () => Promise<void>;
   logout: () => Promise<void>;
   hasRole: (...roles: Role[]) => boolean;
+  updateProfile: (input: UpdateProfileInput) => Promise<UserSummary>;
 }
 
 // ensureRoleAccess validates that the authenticated user actually holds an
@@ -140,5 +141,11 @@ export const useAuth = create<AuthState>((set, get) => ({
   hasRole(...roles) {
     const u = get().user;
     return !!u && roles.some((r) => u.roles.includes(r));
+  },
+
+  async updateProfile(input) {
+    const { data } = await api.patch<UserSummary>('/auth/me', input);
+    set({ user: data });
+    return data;
   },
 }));
