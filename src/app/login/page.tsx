@@ -42,7 +42,7 @@ export default function LoginPage() {
   async function onPasswordSubmit(values: PasswordValues) {
     setServerError(null);
     try {
-      await loginWithPassword(values.mobile, values.password);
+      await loginWithPassword(values.mobile, values.password, role);
       const u = useAuth.getState().user;
       router.replace(u && u.roles.length > 0 ? '/dashboard' : '/pending');
     } catch (e) {
@@ -68,7 +68,7 @@ export default function LoginPage() {
   async function onOtpSubmit(values: OtpValues) {
     setServerError(null);
     try {
-      await verifyOtp(values.mobile, values.code, 'login');
+      await verifyOtp(values.mobile, values.code, 'login', role);
       const u = useAuth.getState().user;
       router.replace(u && u.roles.length > 0 ? '/dashboard' : '/pending');
     } catch (e) {
@@ -102,7 +102,6 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-5">
-            <p className="mb-2 text-sm font-medium text-slate-700">I am a</p>
             <div className="grid grid-cols-3 gap-2">
               {USER_TYPES.map((t) => (
                 <button
