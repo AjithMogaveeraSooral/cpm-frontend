@@ -174,6 +174,9 @@ export interface Property {
 export interface Ticket {
   id: string;
   property_upid: string;
+  property_id: string;
+  created_by: string;
+  vendor_id?: string;
   category: string;
   title: string;
   description?: string;
@@ -182,8 +185,58 @@ export interface Ticket {
   sla_hours: number;
   sla_due_at: string;
   resolved_at?: string;
+  version: number;
+  created_at: string;
+  vendor?: Vendor;
+  history?: TicketHistory[];
+  attachments?: TicketAttachment[];
+}
+
+export interface TicketHistory {
+  id: string;
+  ticket_id: string;
+  from_status?: string;
+  to_status: string;
+  note?: string;
+  actor_id: string;
   created_at: string;
 }
+
+export interface TicketAttachment {
+  id: string;
+  ticket_id: string;
+  s3_key: string;
+  stage: string;
+  created_at: string;
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  trade: string;
+  phone?: string;
+  email?: string;
+  rating: number;
+  active: boolean;
+}
+
+// RaiseTicketInput mirrors the backend POST /tickets DTO.
+export interface RaiseTicketInput {
+  property_id: string;
+  category: string;
+  title: string;
+  description?: string;
+  priority?: string;
+}
+
+// PresignedUpload is returned when reserving an attachment upload slot.
+export interface PresignedUpload {
+  attachment_id: string;
+  key: string;
+  url: string;
+  expires_in_sec: number;
+}
+
 
 export interface DashboardSummary {
   properties: { total: number; listed: number; occupied: number };
