@@ -42,8 +42,9 @@ export default function LoginPage() {
   async function onPasswordSubmit(values: PasswordValues) {
     setServerError(null);
     try {
-      await loginWithPassword(values.mobile, values.password, role);
-      router.replace('/dashboard');
+      await loginWithPassword(values.mobile, values.password);
+      const u = useAuth.getState().user;
+      router.replace(u && u.roles.length > 0 ? '/dashboard' : '/pending');
     } catch (e) {
       setServerError(e instanceof ApiError ? e.message : 'Login failed');
     }
@@ -67,8 +68,9 @@ export default function LoginPage() {
   async function onOtpSubmit(values: OtpValues) {
     setServerError(null);
     try {
-      await verifyOtp(values.mobile, values.code, 'login', role);
-      router.replace('/dashboard');
+      await verifyOtp(values.mobile, values.code, 'login');
+      const u = useAuth.getState().user;
+      router.replace(u && u.roles.length > 0 ? '/dashboard' : '/pending');
     } catch (e) {
       setServerError(e instanceof ApiError ? e.message : 'Verification failed');
     }
