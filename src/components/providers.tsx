@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { MotionConfig } from 'framer-motion';
 import { useState } from 'react';
 
 // Providers wraps the app with a per-session React Query client.
@@ -17,7 +18,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={client}>
-      {children}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
