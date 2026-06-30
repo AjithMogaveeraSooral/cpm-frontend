@@ -15,9 +15,11 @@ export interface LocationValue {
 
 interface LocationPickerProps {
   value?: LocationValue | null;
-  onChange: (value: LocationValue) => void;
+  onChange?: (value: LocationValue) => void;
   /** Map height in pixels. */
   height?: number;
+  /** When true the map is display-only: no marker drag, click, or controls. */
+  readOnly?: boolean;
 }
 
 // Bengaluru city centre — sensible default before the user pins a point.
@@ -32,7 +34,7 @@ const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
  * configured it degrades gracefully to manual latitude/longitude entry so the
  * feature still works in every environment.
  */
-export function LocationPicker({ value, onChange, height = 320 }: LocationPickerProps) {
+export function LocationPicker({ value, onChange, height = 320, readOnly = false }: LocationPickerProps) {
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'cpm-google-maps',
     googleMapsApiKey: API_KEY,
@@ -46,6 +48,7 @@ export function LocationPicker({ value, onChange, height = 320 }: LocationPicker
 
   // Reverse-geocode a point to a human-readable address (best effort).
   const resolveAddress = useCallback((lat: number, lng: number) => {
+    if (!onChange) return;
     if (typeof google === 'undefined' || !google.maps) {
       onChange({ lat, lng });
       return;
@@ -73,6 +76,17 @@ export function LocationPicker({ value, onChange, height = 320 }: LocationPicker
     );
   }, [resolveAddress]);
 
+  // --- Read-only fallback: no API key / load error → plain text summary ---
+  if ((!API_KEY || loadError) && readOnly) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        {value
+          ? value.address ?? `${value.lat.toFixed(6)}, ${value.lng.toFixed(6)}`
+          : 'No location set for this property.'}
+      </div>
+    );
+  }
+
   // --- Fallback: no API key or load failed → manual entry ---
   if (!API_KEY || loadError) {
     return (
@@ -88,14 +102,14 @@ export function LocationPicker({ value, onChange, height = 320 }: LocationPicker
             type="number"
             step="any"
             value={value?.lat ?? ''}
-            onChange={(e) => onChange({ lat: Number(e.target.value), lng: value?.lng ?? 0, address: value?.address })}
+            onChange={(e) => onChange?.({ lat: Number(e.target.value), lng: value?.lng ?? 0, address: value?.address })}
           />
           <Input
             label="Longitude"
             type="number"
             step="any"
             value={value?.lng ?? ''}
-            onChange={(e) => onChange({ lat: value?.lat ?? 0, lng: Number(e.target.value), address: value?.address })}
+            onChange={(e) => onChange?.({ lat: value?.lat ?? 0, lng: Number(e.target.value), address: value?.address })}
           />
         </div>
         <Button type="button" variant="secondary" onClick={useMyLocation} loading={locating}>
@@ -123,30 +137,44 @@ export function LocationPicker({ value, onChange, height = 320 }: LocationPicker
         center={center}
         zoom={value ? 16 : 12}
         onClick={(e) => {
+          if (readOnly) return;
           if (e.latLng) resolveAddress(e.latLng.lat(), e.latLng.lng());
         }}
-        options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+        options={{
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          draggable: !readOnly,
+          gestureHandling: readOnly ? 'none' : 'auto',
+        }}
       >
         {value && (
           <MarkerF
             position={{ lat: value.lat, lng: value.lng }}
-            draggable
+            draggable={!readOnly}
             onDragEnd={(e) => {
               if (e.latLng) resolveAddress(e.latLng.lat(), e.latLng.lng());
             }}
           />
         )}
       </GoogleMap>
-      <div className="flex items-center justify-between gap-3">
-        <p className="flex-1 truncate text-xs text-slate-500">
-          {value
-            ? value.address ?? `${value.lat.toFixed(6)}, ${value.lng.toFixed(6)}`
-            : 'Click on the map or use your location to drop a pin.'}
+      {!readOnly && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="flex-1 truncate text-xs text-slate-500">
+            {value
+              ? value.address ?? `${value.lat.toFixed(6)}, ${value.lng.toFixed(6)}`
+              : 'Click on the map or use your location to drop a pin.'}
+          </p>
+          <Button type="button" variant="secondary" onClick={useMyLocation} loading={locating}>
+            <LocateFixed className="h-4 w-4" /> My location
+          </Button>
+        </div>
+      )}
+      {readOnly && value && (value.address || true) && (
+        <p className="truncate text-xs text-slate-500">
+          {value.address ?? `${value.lat.toFixed(6)}, ${value.lng.toFixed(6)}`}
         </p>
-        <Button type="button" variant="secondary" onClick={useMyLocation} loading={locating}>
-          <LocateFixed className="h-4 w-4" /> My location
-        </Button>
-      </div>
+      )}
     </div>
   );
 }

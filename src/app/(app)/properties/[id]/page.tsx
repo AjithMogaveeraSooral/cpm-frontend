@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { Card } from '@/components/ui/card';
+import { LocationPicker } from '@/components/ui/location-picker';
 import { formatINR, formatDate } from '@/lib/utils';
 import type { Property } from '@/lib/types';
 
@@ -43,6 +44,38 @@ export default function PropertyDetailPage() {
             </div>
           ))}
         </dl>
+      </Card>
+
+      {(data.address || data.landmark || data.pincode) && (
+        <Card className="mt-4">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Address
+          </h2>
+          <div className="space-y-1 text-sm text-slate-700">
+            {data.address && <p>{data.address}</p>}
+            {data.landmark && <p className="text-slate-500">Landmark: {data.landmark}</p>}
+            {data.pincode && <p className="text-slate-500">Pincode: {data.pincode}</p>}
+          </div>
+        </Card>
+      )}
+
+      <Card className="mt-4">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Location
+        </h2>
+        {data.latitude != null && data.longitude != null ? (
+          <LocationPicker
+            readOnly
+            value={{
+              lat: data.latitude,
+              lng: data.longitude,
+              address: data.address,
+              placeId: data.google_place_id,
+            }}
+          />
+        ) : (
+          <p className="text-sm text-slate-500">No precise location set for this property.</p>
+        )}
       </Card>
     </div>
   );

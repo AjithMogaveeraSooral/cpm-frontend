@@ -146,11 +146,7 @@ export interface PublicProperty {
   occupancy_status: string;
   city?: string;
   locality?: string;
-  address?: string;
-  landmark?: string;
-  pincode?: string;
-  latitude?: number;
-  longitude?: number;
+  cover_image_key?: string;
 }
 
 export interface Property {
@@ -167,6 +163,10 @@ export interface Property {
   is_listed: boolean;
   latitude?: number;
   longitude?: number;
+  google_place_id?: string;
+  address?: string;
+  landmark?: string;
+  pincode?: string;
   version: number;
   created_at: string;
 }
