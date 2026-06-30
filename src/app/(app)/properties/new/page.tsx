@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ImagePlus, Star, Video, X } from 'lucide-react';
 import { api, ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-store';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,22 @@ import type {
   CreatePropertyInput,
   Locality,
   Property,
+  PropertyMediaPresign,
   ServicePlan,
 } from '@/lib/types';
+
+// A media item selected by the user before upload. The previewUrl is an
+// in-memory object URL used for the gallery thumbnail.
+interface MediaItem {
+  id: string;
+  file: File;
+  previewUrl: string;
+  kind: 'image' | 'video';
+}
+
+const MAX_MEDIA = 12;
+const MAX_IMAGE_MB = 10;
+const MAX_VIDEO_MB = 100;
 
 const schema = z.object({
   city_id: z.string().min(1, 'Select a city'),
@@ -58,6 +72,9 @@ export default function NewPropertyPage() {
   const { status, hasRole } = useAuth();
   const [location, setLocation] = useState<LocationValue | null>(null);
   const [amenityIds, setAmenityIds] = useState<string[]>([]);
+  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [coverId, setCoverId] = useState<string | null>(null);
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const allowed = hasRole('owner', 'cypress_admin', 'app_admin');
@@ -126,6 +143,94 @@ export default function NewPropertyPage() {
   const toggleAmenity = (id: string) =>
     setAmenityIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
+  // Revoke object URLs when the component unmounts to avoid memory leaks.
+  useEffect(() => {
+    return () => {
+      media.forEach((m) => URL.revokeObjectURL(m.previewUrl));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const addFiles = (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploadMsg(null);
+    const next: MediaItem[] = [];
+    for (const file of Array.from(files)) {
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      if (!isImage && !isVideo) {
+        setUploadMsg(`"${file.name}" is not a photo or video and was skipped.`);
+        continue;
+      }
+      const maxMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
+      if (file.size > maxMb * 1024 * 1024) {
+        setUploadMsg(`"${file.name}" exceeds the ${maxMb}MB limit and was skipped.`);
+        continue;
+      }
+      next.push({
+        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        kind: isVideo ? 'video' : 'image',
+      });
+    }
+    setMedia((prev) => {
+      const merged = [...prev, ...next].slice(0, MAX_MEDIA);
+      if (merged.length < prev.length + next.length) {
+        setUploadMsg(`You can attach up to ${MAX_MEDIA} files. Extra files were skipped.`);
+      }
+      // Default the cover to the first image if none chosen yet.
+      if (!coverId) {
+        const firstImage = merged.find((m) => m.kind === 'image');
+        if (firstImage) setCoverId(firstImage.id);
+      }
+      return merged;
+    });
+  };
+
+  const removeMedia = (id: string) => {
+    setMedia((prev) => {
+      const target = prev.find((m) => m.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      const remaining = prev.filter((m) => m.id !== id);
+      if (coverId === id) {
+        const firstImage = remaining.find((m) => m.kind === 'image');
+        setCoverId(firstImage ? firstImage.id : null);
+      }
+      return remaining;
+    });
+  };
+
+  // uploadMedia reserves a presigned slot per file, then PUTs the bytes
+  // directly to S3. Failures for individual files are collected but do not
+  // block the rest of the flow.
+  const uploadMedia = async (propertyId: string) => {
+    const failures: string[] = [];
+    for (let i = 0; i < media.length; i++) {
+      const m = media[i];
+      setUploadMsg(`Uploading media ${i + 1} of ${media.length}…`);
+      try {
+        const reserve = await api.post<PropertyMediaPresign>(`/properties/${propertyId}/media`, {
+          media_type: m.kind,
+          filename: m.file.name,
+          content_type: m.file.type,
+          is_cover: m.id === coverId,
+        });
+        const uploadUrl = reserve.data?.upload_url;
+        if (!uploadUrl) throw new Error('no upload url');
+        const put = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': m.file.type },
+          body: m.file,
+        });
+        if (!put.ok) throw new Error(`status ${put.status}`);
+      } catch {
+        failures.push(m.file.name);
+      }
+    }
+    return failures;
+  };
+
   const onSubmit = async (values: FormValues) => {
     setSubmitError(null);
     const payload: CreatePropertyInput = {
@@ -143,7 +248,16 @@ export default function NewPropertyPage() {
     };
     try {
       const res = await api.post<Property>('/properties', payload);
-      router.push(`/properties/${res.data?.id ?? ''}`);
+      const propertyId = res.data?.id ?? '';
+      if (propertyId && media.length) {
+        const failures = await uploadMedia(propertyId);
+        if (failures.length) {
+          setUploadMsg(
+            `Property created, but ${failures.length} file(s) failed to upload: ${failures.join(', ')}.`,
+          );
+        }
+      }
+      router.push(`/properties/${propertyId}`);
     } catch (e) {
       setSubmitError(e instanceof ApiError ? e.message : 'Could not create the property.');
     }
@@ -321,6 +435,107 @@ export default function NewPropertyPage() {
             </div>
           </Card>
         )}
+
+        {/* Photos & videos */}
+        <Card>
+          <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Photos & videos
+          </h2>
+          <p className="mb-4 text-xs text-slate-500">
+            Upload up to {MAX_MEDIA} photos and videos. The photo marked with a star is used as the
+            cover image.
+          </p>
+
+          <label
+            htmlFor="property-media"
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-cypress-400 hover:bg-cypress-50/40"
+          >
+            <div className="flex items-center gap-2 text-slate-400">
+              <ImagePlus className="h-6 w-6" />
+              <Video className="h-6 w-6" />
+            </div>
+            <span className="text-sm font-medium text-slate-700">
+              Click to add photos or videos
+            </span>
+            <span className="text-xs text-slate-400">
+              JPG, PNG up to {MAX_IMAGE_MB}MB · MP4 up to {MAX_VIDEO_MB}MB
+            </span>
+            <input
+              id="property-media"
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+          </label>
+
+          {uploadMsg && <p className="mt-3 text-xs text-amber-600">{uploadMsg}</p>}
+
+          {media.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {media.map((m) => (
+                <div
+                  key={m.id}
+                  className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+                >
+                  {m.kind === 'image' ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={m.previewUrl}
+                      alt={m.file.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <video
+                      src={m.previewUrl}
+                      className="h-full w-full object-cover"
+                      muted
+                      playsInline
+                    />
+                  )}
+
+                  {m.kind === 'video' && (
+                    <span className="absolute bottom-1 left-1 inline-flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                      <Video className="h-3 w-3" /> Video
+                    </span>
+                  )}
+
+                  {coverId === m.id && (
+                    <span className="absolute left-1 top-1 inline-flex items-center gap-1 rounded bg-cypress-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                      <Star className="h-3 w-3 fill-current" /> Cover
+                    </span>
+                  )}
+
+                  <div className="absolute inset-0 flex items-end justify-between gap-1 bg-gradient-to-t from-black/50 to-transparent p-1 opacity-0 transition group-hover:opacity-100">
+                    {m.kind === 'image' ? (
+                      <button
+                        type="button"
+                        onClick={() => setCoverId(m.id)}
+                        className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-white"
+                      >
+                        Set cover
+                      </button>
+                    ) : (
+                      <span />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeMedia(m.id)}
+                      aria-label="Remove media"
+                      className="rounded-full bg-white/90 p-1 text-slate-700 hover:bg-red-500 hover:text-white"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
 
         {/* Exact location */}
         <Card>

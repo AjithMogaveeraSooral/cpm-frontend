@@ -172,6 +172,23 @@ export interface CreateLeadInput {
   message?: string;
 }
 
+// AddPropertyMediaInput reserves a presigned upload slot for property media.
+export interface AddPropertyMediaInput {
+  media_type: 'image' | 'video';
+  filename: string;
+  content_type: string;
+  is_cover?: boolean;
+  duration_sec?: number;
+}
+
+// PropertyMediaPresign is returned after reserving a property media slot.
+export interface PropertyMediaPresign {
+  media_id: string;
+  s3_key: string;
+  upload_url: string;
+  expires_in_seconds: number;
+}
+
 export interface Property {
   id: string;
   upid: string;
