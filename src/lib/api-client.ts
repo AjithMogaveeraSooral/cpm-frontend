@@ -38,14 +38,18 @@ interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions['query']): string {
-  const url = new URL(`${BASE_URL}${path}`, typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
+  const absoluteBase = /^https?:\/\//i.test(BASE_URL);
+  const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
+  const url = new URL(`${BASE_URL}${path}`, origin);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v !== undefined && v !== '') url.searchParams.set(k, String(v));
     }
   }
-  // Return a relative URL so the dev proxy/same-origin rules apply.
-  return url.pathname + url.search;
+  // When the base URL is absolute (e.g. static hosting calling the backend
+  // cross-origin) keep the full URL; otherwise return a relative URL so the dev
+  // proxy / same-origin rules apply.
+  return absoluteBase ? url.toString() : url.pathname + url.search;
 }
 
 let refreshInFlight: Promise<boolean> | null = null;
