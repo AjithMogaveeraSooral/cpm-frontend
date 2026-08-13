@@ -13,13 +13,13 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_API_BASE_URL: https://cpm-backend-1035324904785.asia-south1.run.app/api/v1
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://cpm-backend-1035324904785.asia-south1.run.app/api/v1' }}
       NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
     steps:
       - name: Checkout
