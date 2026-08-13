@@ -42,15 +42,15 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
 
           {/* Nav Links */}
           <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 lg:flex">
-            <a href="/welcome#plans" className="transition-colors hover:text-cypress-700">
+            <Link href="/welcome#plans" className="transition-colors hover:text-cypress-700">
               Services & Plans
-            </a>
-            <a href="/welcome#why-us" className="transition-colors hover:text-cypress-700">
+            </Link>
+            <Link href="/welcome#why-us" className="transition-colors hover:text-cypress-700">
               Why Us
-            </a>
-            <a href="/welcome#nri-support" className="transition-colors hover:text-cypress-700">
+            </Link>
+            <Link href="/welcome#nri-support" className="transition-colors hover:text-cypress-700">
               NRI Support
-            </a>
+            </Link>
             <Link href="/contact" className="transition-colors hover:text-cypress-700">
               Contact Us
             </Link>
@@ -95,27 +95,27 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         {mobileMenuOpen && (
           <div className="border-t border-slate-200 bg-white px-6 py-4 md:hidden space-y-3">
             <nav className="flex flex-col gap-3 text-sm font-medium text-slate-700">
-              <a
+              <Link
                 href="/welcome#plans"
                 onClick={() => setMobileMenuOpen(false)}
                 className="py-1 hover:text-cypress-700"
               >
                 Services & Plans
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/welcome#why-us"
                 onClick={() => setMobileMenuOpen(false)}
                 className="py-1 hover:text-cypress-700"
               >
                 Why Us
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/welcome#nri-support"
                 onClick={() => setMobileMenuOpen(false)}
                 className="py-1 hover:text-cypress-700"
               >
                 NRI Support
-              </a>
+              </Link>
               <Link
                 href="/contact"
                 onClick={() => setMobileMenuOpen(false)}

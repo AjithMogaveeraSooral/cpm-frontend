@@ -5,7 +5,7 @@ Next.js App Router. It talks to the Go backend through the standard `/api/v1` en
 
 ## Stack
 
-- **Next.js 15** (App Router, React 19, standalone output)
+- **Next.js 15** (App Router, React 19, standalone / static-export capable)
 - **TypeScript** (strict)
 - **Tailwind CSS** with the Cypress green palette
 - **TanStack Query** for server state + caching
@@ -25,6 +25,11 @@ npm run dev                       # http://localhost:3000
 The dev server proxies `/api/*` to `API_PROXY_TARGET` (default `http://localhost:8080`)
 so the browser, backend, and cookies share an origin.
 
+For GitHub Pages, run `npm run build:pages`. That build targets a static export,
+uses the repository subpath as the default `basePath`, and expects
+`NEXT_PUBLIC_API_BASE_URL` to point at the deployed backend directly because
+GitHub Pages cannot run Next.js rewrites.
+
 ## Environment
 
 | Variable | Purpose | Default |
@@ -39,6 +44,7 @@ so the browser, backend, and cookies share an origin.
 | --- | --- |
 | `npm run dev` | Start the dev server |
 | `npm run build` | Production build (standalone) |
+| `npm run build:pages` | Static export for GitHub Pages (`out/`) |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
