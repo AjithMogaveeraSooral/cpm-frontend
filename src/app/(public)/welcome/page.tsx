@@ -664,7 +664,7 @@ export default function WelcomePage() {
 
           <div className="mt-12 border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
             <p>© 2026 Cypress Property Management. All Rights Reserved.</p>
-            <p className="text-[11px]">Designed per Cypress Wireframe Specifications.</p>
+            <p className="text-[11px]"></p>
           </div>
         </div>
       </footer>
