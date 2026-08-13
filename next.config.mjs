@@ -2,10 +2,11 @@
 // can be published to GitHub Pages. Otherwise we keep the default 'standalone'
 // output used by the Docker/Cloud Run deployment.
 const isPages = process.env.GITHUB_PAGES === 'true';
+const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1];
 
 // GitHub Pages project sites are served from https://<user>.github.io/<repo>/,
 // so assets must be prefixed with the repo name. Override with NEXT_PUBLIC_BASE_PATH.
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? (isPages ? '/CPM-Application' : '');
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? (isPages ? `/${repositoryName || 'cpm-frontend'}` : '');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
