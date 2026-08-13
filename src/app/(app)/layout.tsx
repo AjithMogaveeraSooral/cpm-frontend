@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, CheckSquare, LayoutDashboard, LifeBuoy, LogOut, Receipt, UserCircle, Users, Inbox } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
+import { ThemeSwitcher } from '@/components/theme-switcher';
 import type { Role } from '@/lib/types';
 
 interface NavItem {
@@ -66,14 +67,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-slate-50">
       <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-slate-200/80 bg-white/80 backdrop-blur-xl">
         {/* Brand */}
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cypress-gradient shadow-glow-sm">
-            <Building2 className="h-5 w-5 text-white" />
+        <div className="flex items-center justify-between px-5 py-5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cypress-gradient shadow-glow-sm">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <div className="leading-tight">
+              <div className="text-base font-bold text-gradient">Cypress PM</div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Property Suite</div>
+            </div>
           </div>
-          <div className="leading-tight">
-            <div className="text-base font-bold text-gradient">Cypress PM</div>
-            <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Property Suite</div>
-          </div>
+          <ThemeSwitcher />
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-2">

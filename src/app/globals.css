@@ -4,6 +4,62 @@
 
 :root {
   --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* Brand palette as RGB channel triplets (used as rgb(var(--x) / <alpha>)).
+     :root is the default "Cypress Green" theme; [data-theme] blocks below
+     override it so the whole site can be re-themed at runtime. */
+  --cypress-50: 238 253 243;
+  --cypress-100: 214 249 225;
+  --cypress-200: 175 241 198;
+  --cypress-300: 121 227 164;
+  --cypress-400: 63 205 124;
+  --cypress-500: 26 179 95;
+  --cypress-600: 15 144 76;
+  --cypress-700: 14 114 64;
+  --cypress-800: 16 90 53;
+  --cypress-900: 14 74 45;
+}
+
+/* Theme: Ocean Blue */
+[data-theme='ocean'] {
+  --cypress-50: 239 246 255;
+  --cypress-100: 219 234 254;
+  --cypress-200: 191 219 254;
+  --cypress-300: 147 197 253;
+  --cypress-400: 96 165 250;
+  --cypress-500: 59 130 246;
+  --cypress-600: 37 99 235;
+  --cypress-700: 29 78 216;
+  --cypress-800: 30 64 175;
+  --cypress-900: 30 58 138;
+}
+
+/* Theme: Royal Purple */
+[data-theme='royal'] {
+  --cypress-50: 245 243 255;
+  --cypress-100: 237 233 254;
+  --cypress-200: 221 214 254;
+  --cypress-300: 196 181 253;
+  --cypress-400: 167 139 250;
+  --cypress-500: 139 92 246;
+  --cypress-600: 124 58 237;
+  --cypress-700: 109 40 217;
+  --cypress-800: 91 33 182;
+  --cypress-900: 76 29 149;
+}
+
+/* Theme: Sunset Amber */
+[data-theme='sunset'] {
+  --cypress-50: 255 247 237;
+  --cypress-100: 255 237 213;
+  --cypress-200: 254 215 170;
+  --cypress-300: 253 186 116;
+  --cypress-400: 251 146 60;
+  --cypress-500: 249 115 22;
+  --cypress-600: 234 88 12;
+  --cypress-700: 194 65 12;
+  --cypress-800: 154 52 18;
+  --cypress-900: 124 45 18;
 }
 
 html,
@@ -39,8 +95,8 @@ body {
   }
 
   ::selection {
-    background-color: rgba(26, 179, 95, 0.22);
-    color: #0e4a2d;
+    background-color: rgb(var(--cypress-500) / 0.22);
+    color: rgb(var(--cypress-900));
   }
 
   @media (prefers-reduced-motion: reduce) {
