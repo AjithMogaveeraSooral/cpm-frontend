@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, BellRing, Check, CheckCheck } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { cn, formatDateTime, notificationBody, notificationTitle } from '@/lib/utils';
+import { enablePush } from '@/lib/push';
 import type { NotificationItem } from '@/lib/types';
 
 const POLL_MS = 20_000;
@@ -51,6 +52,8 @@ export function NotificationBell() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   // Tracks notification IDs already seen so we only push-notify genuinely new
   // ones. `null` until the first fetch resolves so we don't blast a burst of
@@ -112,8 +115,19 @@ export function NotificationBell() {
 
   async function requestPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
-    const result = await Notification.requestPermission();
-    setPermission(result);
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      // Registers the service worker + a real Web Push subscription with the
+      // backend so pushes arrive even when this tab/browser is closed.
+      await enablePush();
+      setPermission('granted');
+    } catch (e) {
+      setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
+      setPushError(e instanceof Error ? e.message : 'Could not enable push notifications.');
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   function handleItemClick(item: NotificationItem) {
@@ -166,11 +180,15 @@ export function NotificationBell() {
             {permission !== 'granted' && (
               <button
                 onClick={requestPermission}
-                className="flex w-full items-center gap-2 border-b border-cypress-100 bg-cypress-50/70 px-4 py-2.5 text-left text-xs font-medium text-cypress-800 transition-colors hover:bg-cypress-50"
+                disabled={pushBusy}
+                className="flex w-full items-center gap-2 border-b border-cypress-100 bg-cypress-50/70 px-4 py-2.5 text-left text-xs font-medium text-cypress-800 transition-colors hover:bg-cypress-50 disabled:opacity-60"
               >
                 <BellRing className="h-4 w-4 text-cypress-600" />
-                Enable desktop push alerts for new enquiries
+                {pushBusy ? 'Enabling push alerts…' : 'Enable desktop push alerts for new enquiries'}
               </button>
+            )}
+            {pushError && (
+              <p className="border-b border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">{pushError}</p>
             )}
 
             <div className="max-h-96 overflow-y-auto">
