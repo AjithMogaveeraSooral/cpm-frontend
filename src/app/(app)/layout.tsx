@@ -2,14 +2,16 @@
 
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, CheckSquare, LayoutDashboard, LifeBuoy, LogOut, Receipt, UserCircle, Users, Inbox, Bell } from 'lucide-react';
+import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { NotificationBell } from '@/components/notification-bell';
-import type { Role } from '@/lib/types';
+import type { DashboardSummary, Registration, Role } from '@/lib/types';
 
 interface NavItem {
   href: string;
@@ -51,6 +53,42 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [status, user, router]);
 
+  const isAuthed = status === 'authenticated';
+  const canReport = isAuthed && hasRole('cypress_admin', 'app_admin', 'owner');
+  const isAdmin = isAuthed && hasRole('cypress_admin', 'app_admin');
+
+  // Operational counts powering the sidebar badges. Each is gated by the role
+  // that can read it and refreshed periodically so badges stay current.
+  const { data: summary } = useQuery({
+    queryKey: ['nav-summary'],
+    queryFn: async () => (await api.get<DashboardSummary>('/reports/summary')).data,
+    enabled: canReport,
+    refetchInterval: 30_000,
+  });
+
+  const { data: unread } = useQuery({
+    queryKey: ['notifications', 'unread'],
+    queryFn: async () => (await api.get<{ unread: number }>('/notifications/unread-count')).data,
+    enabled: isAuthed,
+    refetchInterval: 30_000,
+  });
+
+  const { data: pendingApprovals } = useQuery({
+    queryKey: ['nav-pending-approvals'],
+    queryFn: async () => api.get<Registration[]>('/auth/registrations', { query: { status: 'pending' } }),
+    enabled: isAdmin,
+    refetchInterval: 30_000,
+  });
+
+  // Count shown as a badge on each nav item, keyed by route. Undefined/0 hides it.
+  const navCounts: Record<string, number | undefined> = {
+    '/leads': summary?.new_leads,
+    '/tickets': summary?.tickets.open,
+    '/tenancies': summary?.tenancies.proposed,
+    '/approvals': pendingApprovals?.pagination?.total_items,
+    '/notifications': unread?.unread,
+  };
+
   if (status !== 'authenticated' || (user && user.roles.length === 0)) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
@@ -88,6 +126,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 space-y-1 px-3 py-2">
           {visibleNav.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
+            const count = navCounts[href];
+            const isNotif = href === '/notifications';
             return (
               <Link
                 key={href}
@@ -111,6 +151,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   )}
                 />
                 <span className="relative z-10">{label}</span>
+                {count ? (
+                  <span
+                    className={cn(
+                      'relative z-10 ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold',
+                      isNotif ? 'bg-red-500 text-white' : 'bg-cypress-600 text-white',
+                    )}
+                  >
+                    {count > 99 ? '99+' : count}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
