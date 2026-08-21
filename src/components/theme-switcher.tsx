@@ -10,6 +10,12 @@ export const THEMES = [
   { id: 'ocean', label: 'Ocean Blue', swatch: '#2563eb' },
   { id: 'royal', label: 'Royal Purple', swatch: '#7c3aed' },
   { id: 'sunset', label: 'Sunset Amber', swatch: '#ea580c' },
+  { id: 'teal', label: 'Deep Teal', swatch: '#0d9488' },
+  { id: 'rose', label: 'Ruby Rose', swatch: '#e11d48' },
+  { id: 'indigo', label: 'Sapphire Indigo', swatch: '#4f46e5' },
+  { id: 'gold', label: 'Honey Gold', swatch: '#d97706' },
+  { id: 'berry', label: 'Orchid Berry', swatch: '#c026d3' },
+  { id: 'slate', label: 'Carbon Slate', swatch: '#475569' },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]['id'];
@@ -64,7 +70,7 @@ export function ThemeSwitcher({ className }: { className?: string }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-52 animate-scale-in rounded-xl border border-slate-200 bg-white p-1.5 shadow-elevated"
+          className="absolute right-0 z-50 mt-2 max-h-96 w-56 overflow-y-auto animate-scale-in rounded-xl border border-slate-200 bg-white p-1.5 shadow-elevated"
         >
           <div className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             Color theme
