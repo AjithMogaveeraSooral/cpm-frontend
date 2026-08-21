@@ -103,14 +103,26 @@ async function raw<T>(path: string, opts: RequestOptions, retry: boolean): Promi
 
   let env: Envelope<T>;
   try {
-    env = (await res.json()) as Envelope<T>;
-  } catch {
+    const text = await res.text();
+    try {
+      env = text ? JSON.parse(text) as Envelope<T> : ({} as Envelope<T>);
+    } catch {
+      throw new ApiError(
+        res.status,
+        'invalid_response',
+        !res.ok
+          ? `Backend unreachable or returned HTTP ${res.status}: ${text.trim() || res.statusText || 'Error'}`
+          : 'Malformed server response'
+      );
+    }
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw new ApiError(res.status, 'invalid_response', 'Malformed server response');
   }
 
   if (!res.ok || !env.success) {
     const e = env.error;
-    throw new ApiError(res.status, e?.code ?? 'error', e?.message ?? 'Request failed', e?.details);
+    throw new ApiError(res.status, e?.code ?? 'error', e?.message ?? `Request failed (${res.status})`, e?.details);
   }
 
   return { data: env.data as T, pagination: env.meta?.pagination };
