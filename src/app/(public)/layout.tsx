@@ -52,6 +52,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <Link href="/welcome#nri-support" className="transition-colors hover:text-cypress-700">
               NRI Support
             </Link>
+            <Link href="/welcome#faq" className="transition-colors hover:text-cypress-700">
+              FAQ
+            </Link>
             <Link href="/contact" className="transition-colors hover:text-cypress-700">
               Contact Us
             </Link>
@@ -117,6 +120,13 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                 className="py-1 hover:text-cypress-700"
               >
                 NRI Support
+              </Link>
+              <Link
+                href="/welcome#faq"
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-1 hover:text-cypress-700"
+              >
+                FAQ
               </Link>
               <Link
                 href="/contact"

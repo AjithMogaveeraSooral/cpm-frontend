@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { FadeIn, Stagger, StaggerItem } from '@/components/ui/motion';
 import { ModalType } from '@/components/lead-modal';
+import { FaqSection } from '@/components/faq-section';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -531,6 +532,11 @@ export default function WelcomePage() {
       </section>
 
       {/* ======================================================================
+                          FAQ SECTION
+          ====================================================================== */}
+      <FaqSection />
+
+      {/* ======================================================================
                           8. FINAL CTA BANNER (Bottom Lead Catch)
           ====================================================================== */}
       <section className="py-16 bg-slate-50 border-t border-slate-200/70">
@@ -602,6 +608,11 @@ export default function WelcomePage() {
                 <li>
                   <a href="#nri-support" className="hover:text-white transition-colors">
                     NRI Support
+                  </a>
+                </li>
+                <li>
+                  <a href="#faq" className="hover:text-white transition-colors">
+                    FAQ
                   </a>
                 </li>
                 <li>
