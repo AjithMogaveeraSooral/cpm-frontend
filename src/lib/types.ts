@@ -172,6 +172,17 @@ export interface CreateLeadInput {
   message?: string;
 }
 
+// NotificationItem mirrors the backend in-app notification entity.
+export interface NotificationItem {
+  id: string;
+  user_id?: string;
+  channel: string;
+  template: string;
+  payload?: Record<string, unknown>;
+  status: string;
+  created_at: string;
+}
+
 // AddPropertyMediaInput reserves a presigned upload slot for property media.
 export interface AddPropertyMediaInput {
   media_type: 'image' | 'video';
