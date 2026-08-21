@@ -17,7 +17,7 @@ import {
   Sparkles,
   User,
 } from 'lucide-react';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 
 type FormType = 'owner' | 'general';
 
@@ -38,13 +38,14 @@ export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [referenceId, setReferenceId] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) return;
 
     setIsSubmitting(true);
-    const ref = `CPM-LEAD-${Math.floor(100000 + Math.random() * 900000)}`;
+    setError(null);
 
     const isOwner = formType === 'owner';
     const structuredMessage = isOwner
@@ -52,7 +53,7 @@ export default function ContactPage() {
       : `[General Enquiry] Subject: ${subject} | Details: ${notes || 'None provided'}`;
 
     try {
-      await api.post(
+      const res = await api.post<{ id: string }>(
         '/public/leads',
         {
           name,
@@ -62,18 +63,24 @@ export default function ContactPage() {
         },
         { auth: false }
       );
-    } catch {
-      // Graceful fallback for offline dev environment
-      console.log('Submitted lead locally');
+      // Only mark the submission successful once the backend confirms the lead
+      // was created, so the Cypress Admin dashboard and this UI stay in sync.
+      setReferenceId(res.data?.id ? `CPM-${res.data.id.slice(0, 8).toUpperCase()}` : `CPM-LEAD-${Math.floor(100000 + Math.random() * 900000)}`);
+      setSubmitted(true);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'We could not submit your request right now. Please try again in a moment.'
+      );
     } finally {
       setIsSubmitting(false);
-      setReferenceId(ref);
-      setSubmitted(true);
     }
   };
 
   const handleReset = () => {
     setSubmitted(false);
+    setError(null);
     setName('');
     setPhone('');
     setEmail('');
@@ -354,6 +361,11 @@ export default function ContactPage() {
                         </>
                       )}
                     </button>
+                    {error && (
+                      <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-center text-xs font-medium text-red-700">
+                        {error}
+                      </p>
+                    )}
                     <p className="mt-2 text-center text-xs text-slate-400 flex items-center justify-center gap-1">
                       <ShieldCheck className="h-3.5 w-3.5 text-cypress-600" />
                       Privacy Guaranteed • Directly routes to Cypress Admin Dashboard

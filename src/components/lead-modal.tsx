@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, Building, Send, CheckCircle2, Clock, Calendar, Sparkles } from 'lucide-react';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 
 export type ModalType = 'callback' | 'property' | null;
 
@@ -25,6 +25,7 @@ export function LeadModal({ isOpen, type, onClose }: LeadModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [autoSmsPreview, setAutoSmsPreview] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen || !type) return null;
 
@@ -35,38 +36,39 @@ export function LeadModal({ isOpen, type, onClose }: LeadModalProps) {
     if (!name || !phone) return;
 
     setIsSubmitting(true);
+    setError(null);
     try {
       const payloadMessage = isCallback
         ? `[Talk to a Manager Request] Feasible Time: ${feasibleTime}. Notes: ${message}`
         : `[Add Property Request] Type: ${propertyType}, Location: ${location}, Selected Plan: ${plan}. Notes: ${message}`;
 
-      await api.post('/leads', {
-        type: isCallback ? 'callback' : 'enquiry',
-        name,
-        phone,
-        email: email || undefined,
-        message: payloadMessage,
-      });
+      // Public marketing pages have no authenticated user, so submit through the
+      // unauthenticated /public/leads endpoint. Only mark success once the lead
+      // is actually persisted by the backend.
+      const res = await api.post<{ id: string }>(
+        '/public/leads',
+        {
+          name,
+          phone,
+          email: email || undefined,
+          message: payloadMessage,
+        },
+        { auth: false }
+      );
 
-      // Prepare simulated automated SMS/WhatsApp dispatch string
+      const refId = res.data?.id ? res.data.id.slice(0, 8).toUpperCase() : `${Math.floor(100000 + Math.random() * 900000)}`;
       const autoMsg = `Automated Message dispatched to ${phone}: "Thank you ${name} for reaching out to Cypress Property Management! Our team has received your ${
         isCallback ? 'callback request' : 'property onboarding request'
-      } and will connect with you ${isCallback ? `at ${feasibleTime}` : 'shortly'}. Reference ID: #CPM-${Math.floor(
-        100000 + Math.random() * 900000
-      )}"`;
+      } and will connect with you ${isCallback ? `at ${feasibleTime}` : 'shortly'}. Reference ID: #CPM-${refId}"`;
 
       setAutoSmsPreview(autoMsg);
       setSubmitted(true);
-    } catch {
-      // Fallback grace preview if local dev server backend is offline
-      const autoMsg = `Automated Message dispatched to ${phone}: "Thank you ${name} for reaching out to Cypress Property Management! Our team has received your ${
-        isCallback ? 'callback request' : 'property onboarding request'
-      } and will connect with you ${isCallback ? `at ${feasibleTime}` : 'shortly'}. Reference ID: #CPM-${Math.floor(
-        100000 + Math.random() * 900000
-      )}"`;
-
-      setAutoSmsPreview(autoMsg);
-      setSubmitted(true);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'We could not submit your request right now. Please try again in a moment.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -75,6 +77,7 @@ export function LeadModal({ isOpen, type, onClose }: LeadModalProps) {
   const handleReset = () => {
     setSubmitted(false);
     setAutoSmsPreview(null);
+    setError(null);
     setName('');
     setPhone('');
     setEmail('');
@@ -285,6 +288,11 @@ export function LeadModal({ isOpen, type, onClose }: LeadModalProps) {
                         {isCallback ? 'Submit Callback Request' : 'Submit Property Onboarding'}
                       </>
                     )}
+                  {error && (
+                    <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-center text-xs font-medium text-red-700">
+                      {error}
+                    </p>
+                  )}
                   </button>
                   <p className="mt-2 text-center text-xs text-slate-400">
                     ₹0 Onboarding Fee • 100% Privacy Guaranteed
