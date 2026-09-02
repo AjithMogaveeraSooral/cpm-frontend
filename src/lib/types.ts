@@ -165,6 +165,22 @@ export interface AdminUpdateUserInput {
   password?: string;
 }
 
+// Tenancy mirrors the backend tenancy entity returned by /tenancies.
+export type TenancyStatus = 'proposed' | 'approved' | 'rejected' | 'active' | 'ended';
+
+export interface Tenancy {
+  id: string;
+  property_id: string;
+  tenant_id: string;
+  status: TenancyStatus;
+  start_date?: string;
+  end_date?: string;
+  rent_amount: number;
+  deposit_amount: number;
+  approved_at?: string;
+  created_at: string;
+}
+
 export interface PublicProperty {
   upid: string;
   property_type: string;

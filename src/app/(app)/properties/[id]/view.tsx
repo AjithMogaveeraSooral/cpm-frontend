@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
-import { UserPlus } from 'lucide-react';
+import { History, UserPlus } from 'lucide-react';
 import { api, ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-store';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,15 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { LocationPicker } from '@/components/ui/location-picker';
 import { formatINR, formatDate } from '@/lib/utils';
-import type { AdminUser, Property } from '@/lib/types';
+import type { AdminUser, Property, Tenancy } from '@/lib/types';
+
+const TENANCY_STATUS_STYLES: Record<string, string> = {
+  active: 'bg-cypress-100 text-cypress-700',
+  approved: 'bg-cypress-100 text-cypress-700',
+  proposed: 'bg-amber-100 text-amber-700',
+  rejected: 'bg-red-100 text-red-700',
+  ended: 'bg-slate-100 text-slate-600',
+};
 
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>();
@@ -36,6 +44,13 @@ export default function PropertyDetailPage() {
     queryKey: ['admin-users', 'tenant'],
     queryFn: () => api.get<AdminUser[]>('/auth/users', { query: { role: 'tenant' } }),
     enabled: isAdmin,
+  });
+  // Tenancy history for this property (most recent first).
+  const historyQ = useQuery({
+    queryKey: ['tenancies', 'property', params.id],
+    queryFn: () =>
+      api.get<Tenancy[]>('/tenancies', { query: { property_id: params.id, page: 1, page_size: 50 } }),
+    enabled: !!params.id,
   });
 
   const [tenantId, setTenantId] = useState('');
@@ -63,6 +78,7 @@ export default function PropertyDetailPage() {
       setStartDate('');
       qc.invalidateQueries({ queryKey: ['property', params.id] });
       qc.invalidateQueries({ queryKey: ['tenancies'] });
+      qc.invalidateQueries({ queryKey: ['tenancies', 'property', params.id] });
     },
     onError: (e) => {
       setAssignOk(false);
@@ -218,6 +234,45 @@ export default function PropertyDetailPage() {
           />
         ) : (
           <p className="text-sm text-slate-500">No precise location set for this property.</p>
+        )}
+      </Card>
+
+      <Card className="mt-4">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <History className="h-4 w-4" /> Tenant history
+        </h2>
+        {historyQ.isLoading ? (
+          <p className="text-sm text-slate-500">Loading history…</p>
+        ) : (historyQ.data?.data?.length ?? 0) === 0 ? (
+          <p className="text-sm text-slate-500">No tenants have been assigned to this property yet.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {historyQ.data?.data?.map((t) => {
+              const tenant = tenants.find((u) => u.id === t.tenant_id);
+              const name = tenant ? tenant.full_name || tenant.mobile : 'Tenant';
+              return (
+                <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{name}</p>
+                    <p className="text-xs text-slate-500">
+                      {t.start_date ? formatDate(t.start_date) : 'Start pending'}
+                      {t.end_date ? ` – ${formatDate(t.end_date)}` : ' – ongoing'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-cypress-700">{formatINR(t.rent_amount)}/mo</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                        TENANCY_STATUS_STYLES[t.status] ?? 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {t.status}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </Card>
     </div>
