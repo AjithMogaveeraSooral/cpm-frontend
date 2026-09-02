@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { LocationPicker, type LocationValue } from '@/components/ui/location-picker';
 import type {
+  AdminUser,
   Amenity,
   Apartment,
   City,
@@ -39,6 +40,7 @@ const MAX_IMAGE_MB = 10;
 const MAX_VIDEO_MB = 100;
 
 const schema = z.object({
+  owner_id: z.string().optional(),
   city_id: z.string().min(1, 'Select a city'),
   locality_id: z.string().min(1, 'Select a locality'),
   apartment_id: z.string().optional(),
@@ -78,6 +80,7 @@ export default function NewPropertyPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const allowed = hasRole('owner', 'cypress_admin', 'app_admin');
+  const isAdmin = hasRole('cypress_admin', 'app_admin');
 
   useEffect(() => {
     if (status === 'authenticated' && !allowed) router.replace('/properties');
@@ -125,12 +128,19 @@ export default function NewPropertyPage() {
     queryFn: () => api.get<Amenity[]>('/master/amenities'),
   });
 
+  // Admins assign the property to an existing owner; owners create for themselves.
+  const ownersQ = useQuery({
+    queryKey: ['admin-users', 'owner'],
+    queryFn: () => api.get<AdminUser[]>('/auth/users', { query: { role: 'owner' } }),
+    enabled: isAdmin,
+  });
+
   const cities = citiesQ.data?.data ?? [];
   const localities = localitiesQ.data?.data ?? [];
   const apartments = apartmentsQ.data?.data ?? [];
   const plans = plansQ.data?.data ?? [];
   const amenities = amenitiesQ.data?.data ?? [];
-
+  const owners = ownersQ.data?.data ?? [];
   // Reset dependent selects when the parent geography changes.
   useEffect(() => {
     setValue('locality_id', '');
@@ -233,8 +243,13 @@ export default function NewPropertyPage() {
 
   const onSubmit = async (values: FormValues) => {
     setSubmitError(null);
+    if (isAdmin && !values.owner_id) {
+      setSubmitError('Please select the property owner.');
+      return;
+    }
     const payload: CreatePropertyInput = {
       ...values,
+      owner_id: isAdmin ? values.owner_id : undefined,
       bhk: Number(values.bhk),
       area_sqft: values.area_sqft ? Number(values.area_sqft) : undefined,
       monthly_rent: Number(values.monthly_rent),
@@ -276,6 +291,32 @@ export default function NewPropertyPage() {
       <h1 className="mb-6 text-2xl font-semibold text-slate-900">Add property</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Owner assignment (admin only) */}
+        {isAdmin && (
+          <Card>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Owner
+            </h2>
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Assign to owner</label>
+              <select className={selectCls} disabled={ownersQ.isLoading} {...register('owner_id')}>
+                <option value="">Select owner…</option>
+                {owners.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.full_name || o.mobile} · {o.mobile}
+                  </option>
+                ))}
+              </select>
+              {ownersQ.isLoading && <p className="text-xs text-slate-400">Loading owners…</p>}
+              {!ownersQ.isLoading && owners.length === 0 && (
+                <p className="text-xs text-amber-600">
+                  No owners yet. Create an owner in Property Owners first.
+                </p>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Location classification */}
         <Card>
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">

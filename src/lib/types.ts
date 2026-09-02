@@ -84,6 +84,7 @@ export interface Amenity {
 
 // CreatePropertyInput mirrors the backend property registration DTO.
 export interface CreatePropertyInput {
+  owner_id?: string;
   city_id: string;
   locality_id: string;
   apartment_id?: string;
