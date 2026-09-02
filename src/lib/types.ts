@@ -135,6 +135,35 @@ export interface Registration {
   reviewed_at?: string;
 }
 
+// AdminUser is the admin-directory projection of a user account.
+export interface AdminUser {
+  id: string;
+  mobile: string;
+  full_name?: string;
+  email?: string;
+  status: string;
+  roles: Role[];
+  created_at: string;
+}
+
+// AdminCreateUserInput mirrors the backend admin user-provisioning DTO.
+export interface AdminCreateUserInput {
+  mobile: string;
+  role: Extract<Role, 'tenant' | 'owner'>;
+  full_name: string;
+  email?: string;
+  password?: string;
+}
+
+// AdminUpdateUserInput mirrors the backend admin user-edit DTO. All fields are
+// optional; omitted fields are left unchanged.
+export interface AdminUpdateUserInput {
+  full_name?: string;
+  email?: string;
+  status?: 'active' | 'suspended';
+  password?: string;
+}
+
 export interface PublicProperty {
   upid: string;
   property_type: string;

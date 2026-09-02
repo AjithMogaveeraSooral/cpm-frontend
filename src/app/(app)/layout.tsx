@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, CheckSquare, LayoutDashboard, LifeBuoy, LogOut, Receipt, UserCircle, Users, Inbox, Bell } from 'lucide-react';
+import { Building2, CheckSquare, LayoutDashboard, LifeBuoy, LogOut, Receipt, UserCircle, Users, Inbox, Bell, UserRound, KeyRound } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,8 @@ const nav: NavItem[] = [
   { href: '/tenancies', label: 'Tenancies', icon: Users },
   { href: '/invoices', label: 'Invoices', icon: Receipt },
   { href: '/leads', label: 'Enquiries', icon: Inbox, roles: ['cypress_admin', 'app_admin'] },
+  { href: '/tenants', label: 'Tenant Users', icon: UserRound, roles: ['cypress_admin', 'app_admin'] },
+  { href: '/owners', label: 'Property Owners', icon: KeyRound, roles: ['cypress_admin', 'app_admin'] },
   { href: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['cypress_admin', 'app_admin'] },
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/profile', label: 'Profile', icon: UserCircle },
