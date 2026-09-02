@@ -243,3 +243,15 @@ body {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-cypress-500/60 focus-visible:ring-offset-2;
   }
 }
+
+/* Google Places Autocomplete dropdown is appended to <body>; lift it above
+   dialogs/cards so suggestions are visible and clickable. */
+.pac-container {
+  z-index: 100000 !important;
+  border-radius: 0.75rem;
+  margin-top: 4px;
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgb(226 232 240);
+  font-family: var(--font-sans);
+}
+

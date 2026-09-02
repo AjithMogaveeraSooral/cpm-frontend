@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { GoogleMap, MarkerF, useJsApiLoader } from '@react-google-maps/api';
-import { LocateFixed } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Autocomplete, GoogleMap, MarkerF, useJsApiLoader } from '@react-google-maps/api';
+import { LocateFixed, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -26,6 +26,10 @@ interface LocationPickerProps {
 const DEFAULT_CENTER = { lat: 12.9716, lng: 77.5946 };
 const containerStyle = { width: '100%', borderRadius: '0.75rem' };
 
+// Loaded once at module scope so the array reference is stable — passing a new
+// array to useJsApiLoader on every render forces a reload and throws.
+const LIBRARIES: 'places'[] = ['places'];
+
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
 /**
@@ -38,9 +42,11 @@ export function LocationPicker({ value, onChange, height = 320, readOnly = false
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'cpm-google-maps',
     googleMapsApiKey: API_KEY,
+    libraries: LIBRARIES,
   });
 
   const [locating, setLocating] = useState(false);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const center = useMemo(
     () => (value ? { lat: value.lat, lng: value.lng } : DEFAULT_CENTER),
     [value],
@@ -75,6 +81,21 @@ export function LocationPicker({ value, onChange, height = 320, readOnly = false
       { enableHighAccuracy: true, timeout: 10000 },
     );
   }, [resolveAddress]);
+
+  // Apply the place chosen from the search autocomplete: centre the map, drop a
+  // pin, and propagate the address/placeId to the parent.
+  const onPlaceChanged = useCallback(() => {
+    const place = autocompleteRef.current?.getPlace();
+    if (!place || !place.geometry || !place.geometry.location) return;
+    const lat = place.geometry.location.lat();
+    const lng = place.geometry.location.lng();
+    onChange?.({
+      lat,
+      lng,
+      address: place.formatted_address ?? place.name,
+      placeId: place.place_id,
+    });
+  }, [onChange]);
 
   // --- Read-only fallback: no API key / load error → plain text summary ---
   if ((!API_KEY || loadError) && readOnly) {
@@ -132,6 +153,29 @@ export function LocationPicker({ value, onChange, height = 320, readOnly = false
 
   return (
     <div className="flex flex-col gap-3">
+      {!readOnly && (
+        <Autocomplete
+          onLoad={(ac) => {
+            autocompleteRef.current = ac;
+          }}
+          onPlaceChanged={onPlaceChanged}
+          options={{ fields: ['geometry', 'formatted_address', 'name', 'place_id'] }}
+        >
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search for a place, address, or landmark…"
+              onKeyDown={(e) => {
+                // Prevent Enter (used to pick a suggestion) from submitting the
+                // surrounding form.
+                if (e.key === 'Enter') e.preventDefault();
+              }}
+              className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3.5 text-sm text-slate-900 shadow-soft transition-all duration-200 placeholder:text-slate-400 hover:border-slate-400 focus:border-cypress-500 focus:outline-none focus:ring-2 focus:ring-cypress-500/30"
+            />
+          </div>
+        </Autocomplete>
+      )}
       <GoogleMap
         mapContainerStyle={{ ...containerStyle, height: `${height}px` }}
         center={center}
