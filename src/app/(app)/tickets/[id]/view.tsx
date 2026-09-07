@@ -1,315 +1,369 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Paperclip, Upload } from 'lucide-react';
-import { api, ApiError } from '@/lib/api-client';
-import { useAuth } from '@/lib/auth-store';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
+  AlertTriangle,
+  User,
+  Wrench,
+  Zap,
+  Hammer,
+  FileCheck,
+  ThumbsUp,
+  ThumbsDown,
+  Check,
+  X,
+  MessageSquare,
+} from 'lucide-react';
+import { useDataStore } from '@/lib/data-store';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { formatDate } from '@/lib/utils';
-import type { PresignedUpload, Ticket, Vendor } from '@/lib/types';
-
-const STATUS_STYLES: Record<string, string> = {
-  open: 'bg-amber-100 text-amber-700',
-  assigned: 'bg-indigo-100 text-indigo-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  resolved: 'bg-cypress-100 text-cypress-700',
-  closed: 'bg-slate-100 text-slate-600',
-  rejected: 'bg-slate-200 text-slate-600',
-  escalated: 'bg-red-100 text-red-700',
-};
-
-// Non-"assigned" status targets the maintenance state machine allows. Assignment
-// is performed through the dedicated assign action (which also sets a vendor).
-const NEXT_STATUSES: Record<string, string[]> = {
-  open: ['rejected', 'escalated'],
-  assigned: ['in_progress', 'escalated', 'rejected'],
-  in_progress: ['resolved', 'escalated'],
-  resolved: ['closed', 'in_progress'],
-  escalated: ['in_progress', 'rejected'],
-};
+import { formatDate, formatINR } from '@/lib/utils';
+import type { Ticket } from '@/lib/types';
 
 export default function TicketDetailPage() {
   const params = useParams<{ id: string }>();
-  const id = params.id;
-  const queryClient = useQueryClient();
-  const { hasRole } = useAuth();
-  const isAdmin = hasRole('cypress_admin', 'app_admin');
+  const router = useRouter();
+  const {
+    currentRole,
+    tickets,
+    properties,
+    acknowledgeTicket,
+    ownerApproveTicket,
+    resolveTicket,
+    tenantAcknowledgeTicket,
+  } = useDataStore();
 
-  const [vendorId, setVendorId] = useState('');
-  const [note, setNote] = useState('');
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const ticket = tickets.find((t) => t.id === params.id) || tickets[0];
 
-  const ticketQ = useQuery({
-    queryKey: ['ticket', id],
-    queryFn: async () => (await api.get<Ticket>(`/tickets/${id}`)).data,
-    enabled: !!id,
-  });
-  const ticket = ticketQ.data;
+  // Acknowledgment modal state
+  const [ackPlanCovered, setAckPlanCovered] = useState(true);
+  const [ackCost, setAckCost] = useState('1500');
+  const [ackNote, setAckNote] = useState('');
 
-  const vendorsQ = useQuery({
-    queryKey: ['vendors'],
-    queryFn: () => api.get<Vendor[]>('/vendors', { query: { active: true, page_size: 100 } }),
-    enabled: isAdmin,
-  });
-  const vendors = vendorsQ.data?.data ?? [];
+  // Resolution note state
+  const [resNote, setResNote] = useState('Technician inspected and replaced faulty parts. Tested under full load.');
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+  if (!ticket) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-slate-500">Ticket not found.</p>
+        <Link href="/tickets">
+          <Button variant="secondary" className="mt-3">
+            Back to Tickets
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
-  const assignMut = useMutation({
-    mutationFn: () =>
-      api.post(`/tickets/${id}/assign`, { vendor_id: vendorId, note: note || undefined }),
-    onSuccess: () => {
-      setActionError(null);
-      setNote('');
-      setVendorId('');
-      refresh();
-    },
-    onError: (e) => setActionError(e instanceof ApiError ? e.message : 'Assignment failed.'),
-  });
-
-  const statusMut = useMutation({
-    mutationFn: (status: string) =>
-      api.patch(`/tickets/${id}/status`, { status, note: note || undefined }),
-    onSuccess: () => {
-      setActionError(null);
-      setNote('');
-      refresh();
-    },
-    onError: (e) => setActionError(e instanceof ApiError ? e.message : 'Status update failed.'),
-  });
-
-  const nextStatuses = useMemo(
-    () => (ticket ? NEXT_STATUSES[ticket.status] ?? [] : []),
-    [ticket],
-  );
-
-  const canAttach = isAdmin || (ticket && !['closed', 'rejected'].includes(ticket.status));
-
-  const onPickFile = async (file: File) => {
-    if (!ticket) return;
-    setUploadMsg(null);
-    try {
-      const stage = ['resolved', 'closed'].includes(ticket.status) ? 'resolution' : 'created';
-      const res = await api.post<PresignedUpload>(`/tickets/${id}/attachments`, {
-        filename: file.name,
-        content_type: file.type || 'application/octet-stream',
-        stage,
-      });
-      const slot = res.data;
-      if (slot?.url) {
-        const put = await fetch(slot.url, {
-          method: 'PUT',
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
-          body: file,
-        });
-        if (!put.ok) throw new Error('upload failed');
-      }
-      setUploadMsg('Attachment uploaded.');
-      refresh();
-    } catch (e) {
-      setUploadMsg(
-        e instanceof ApiError
-          ? e.message
-          : 'Attachment recorded, but the file upload could not be completed (storage may be unconfigured).',
-      );
-      refresh();
-    } finally {
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
-
-  if (ticketQ.isLoading) return <p className="text-slate-500">Loading…</p>;
-  if (ticketQ.error || !ticket) return <p className="text-red-600">Could not load this ticket.</p>;
-
-  const fields: Array<[string, string]> = [
-    ['Property', ticket.property_upid],
-    ['Category', ticket.category],
-    ['Priority', ticket.priority],
-    ['SLA window', `${ticket.sla_hours}h`],
-    ['SLA due', formatDate(ticket.sla_due_at)],
-    ['Raised', formatDate(ticket.created_at)],
-  ];
-  if (ticket.resolved_at) fields.push(['Resolved', formatDate(ticket.resolved_at)]);
-  if (ticket.vendor) fields.push(['Vendor', `${ticket.vendor.name} (${ticket.vendor.trade})`]);
+  const property = properties.find((p) => p.id === ticket.property_id);
+  const isAdmin = currentRole === 'cypress_admin';
+  const isOwner = currentRole === 'owner';
+  const isTenant = currentRole === 'tenant';
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <Link
-        href="/tickets"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-cypress-700"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to tickets
-      </Link>
-
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{ticket.title}</h1>
-          {ticket.description && <p className="mt-1 text-sm text-slate-600">{ticket.description}</p>}
-        </div>
-        <span
-          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium capitalize ${
-            STATUS_STYLES[ticket.status] ?? 'bg-slate-100 text-slate-600'
-          }`}
+    <div className="max-w-4xl pb-16">
+      {/* Back button */}
+      <div className="mb-4">
+        <Link
+          href="/tickets"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800"
         >
-          {ticket.status.replace('_', ' ')}
-        </span>
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Tickets
+        </Link>
       </div>
 
-      <Card>
-        <dl className="grid grid-cols-1 gap-y-4 sm:grid-cols-3">
-          {fields.map(([k, v]) => (
-            <div key={k}>
-              <dt className="text-xs uppercase tracking-wide text-slate-400">{k}</dt>
-              <dd className="text-sm font-medium capitalize text-slate-900">{v}</dd>
-            </div>
-          ))}
-        </dl>
-      </Card>
-
-      {/* Admin actions */}
-      {isAdmin && (
-        <Card className="mt-4">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Manage ticket
-          </h2>
-
-          <div className="mb-4 flex flex-col gap-2">
-            <label className="text-sm font-medium text-slate-700">Note (optional)</label>
-            <textarea
-              rows={2}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Add a note to accompany the next action…"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-cypress-500 focus:outline-none focus:ring-1 focus:ring-cypress-500"
-            />
-          </div>
-
-          {/* Assign vendor */}
-          <div className="mb-4 flex flex-wrap items-end gap-3">
-            <div className="flex flex-1 flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">Assign vendor</label>
-              <select
-                value={vendorId}
-                onChange={(e) => setVendorId(e.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-cypress-500 focus:outline-none focus:ring-1 focus:ring-cypress-500"
-              >
-                <option value="">Select a vendor…</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name} · {v.trade}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Button
-              type="button"
-              onClick={() => assignMut.mutate()}
-              loading={assignMut.isPending}
-              disabled={!vendorId}
-            >
-              Assign
-            </Button>
-          </div>
-
-          {/* Status transitions */}
+      {/* Ticket Header */}
+      <Card className="mb-6 p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Transition status</label>
-            {nextStatuses.length === 0 ? (
-              <p className="text-sm text-slate-400">No further transitions available.</p>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="font-mono text-xs font-bold text-cypress-700 bg-cypress-50 border border-cypress-200 px-2 py-0.5 rounded-lg">
+                {ticket.property_upid}
+              </span>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold uppercase text-slate-600">
+                {ticket.category}
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${
+                  ticket.priority === 'emergency'
+                    ? 'bg-red-100 text-red-800'
+                    : ticket.priority === 'high'
+                    ? 'bg-orange-100 text-orange-800'
+                    : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                Priority: {ticket.priority}
+              </span>
+            </div>
+
+            <h1 className="text-xl font-bold text-slate-900">{ticket.title}</h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Raised on {formatDate(ticket.created_at)} by <strong>{ticket.created_by_name || 'Tenant'}</strong>
+            </p>
+          </div>
+
+          <div className="text-right">
+            <span className="inline-block rounded-full border border-cypress-300 bg-cypress-50 px-3 py-1 text-xs font-bold text-cypress-800 capitalize">
+              ● {ticket.status.replace(/_/g, ' ')}
+            </span>
+            <p className="text-[11px] text-slate-400 mt-1.5 flex items-center justify-end gap-1">
+              <Clock className="h-3 w-3" /> SLA Due: {formatDate(ticket.sla_due_at)}
+            </p>
+          </div>
+        </div>
+
+        {/* Plan coverage notice */}
+        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-cypress-600" />
+            <span>
+              Property Plan: <strong>{property?.plan_name || 'Gold NRI Prime'}</strong>
+            </span>
+            {ticket.plan_covered ? (
+              <span className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.2 text-[10px] font-bold">
+                Covered in Plan (Zero Owner Surcharge)
+              </span>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {nextStatuses.map((s) => (
-                  <Button
-                    key={s}
-                    type="button"
-                    variant="secondary"
-                    onClick={() => statusMut.mutate(s)}
-                    loading={statusMut.isPending}
-                  >
-                    {s.replace('_', ' ')}
-                  </Button>
-                ))}
-              </div>
+              <span className="rounded bg-amber-100 text-amber-800 px-2 py-0.2 text-[10px] font-bold">
+                Owner Authorization Required
+              </span>
             )}
           </div>
-
-          {actionError && <p className="mt-3 text-sm text-red-600">{actionError}</p>}
-        </Card>
-      )}
-
-      {/* Attachments */}
-      <Card className="mt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Photo evidence
-          </h2>
-          {canAttach && (
-            <>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onPickFile(f);
-                }}
-              />
-              <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}>
-                <Upload className="h-4 w-4" /> Add photo
-              </Button>
-            </>
+          {ticket.estimated_cost && (
+            <span className="font-semibold text-slate-700">
+              Estimated Cost: <strong className="text-cypress-800">{formatINR(ticket.estimated_cost)}</strong>
+            </span>
           )}
         </div>
-        {ticket.attachments && ticket.attachments.length > 0 ? (
-          <ul className="divide-y divide-slate-100">
-            {ticket.attachments.map((a) => (
-              <li key={a.id} className="flex items-center gap-3 py-2 text-sm">
-                <Paperclip className="h-4 w-4 text-slate-400" />
-                <span className="flex-1 truncate text-slate-700">{a.s3_key.split('/').pop()}</span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-500">
-                  {a.stage}
-                </span>
-                <span className="text-xs text-slate-400">{formatDate(a.created_at)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-slate-400">No photos attached yet.</p>
-        )}
-        {uploadMsg && <p className="mt-3 text-xs text-slate-500">{uploadMsg}</p>}
       </Card>
 
-      {/* History timeline */}
-      <Card className="mt-4">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          History
-        </h2>
-        {ticket.history && ticket.history.length > 0 ? (
-          <ol className="relative space-y-4 border-l border-slate-200 pl-5">
-            {[...ticket.history]
-              .sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at))
-              .map((h) => (
-                <li key={h.id} className="relative">
-                  <span className="absolute -left-[1.42rem] top-1 h-2.5 w-2.5 rounded-full bg-cypress-500" />
-                  <p className="text-sm font-medium capitalize text-slate-900">
-                    {h.from_status ? `${h.from_status.replace('_', ' ')} → ` : ''}
-                    {h.to_status.replace('_', ' ')}
-                  </p>
-                  {h.note && <p className="text-sm text-slate-600">{h.note}</p>}
-                  <p className="text-xs text-slate-400">{formatDate(h.created_at)}</p>
-                </li>
-              ))}
-          </ol>
-        ) : (
-          <p className="text-sm text-slate-400">No history yet.</p>
+      {/* Description */}
+      <Card className="mb-6">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+          Issue Description & Symptoms
+        </h3>
+        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+          {ticket.description}
+        </p>
+      </Card>
+
+      {/* 5-STAGE WORKFLOW ACTION PANEL */}
+      <div className="mb-6 space-y-4">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+          Maintenance Lifecycle & Multi-Party Approvals
+        </h3>
+
+        {/* STAGE 1: CYPRESS ACKNOWLEDGMENT (Cypress Admin Action) */}
+        {ticket.status === 'open' && (
+          <Card className="border-indigo-200 bg-indigo-50/40 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-slate-900">Step 1: Cypress Operations Acknowledgment</h4>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Check whether this repair is covered under the property&apos;s service plan ({property?.plan_name || 'Plan'}), or requires Owner financial approval.
+                </p>
+
+                <div className="mt-4 space-y-3">
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="planCoverage"
+                        checked={ackPlanCovered}
+                        onChange={() => setAckPlanCovered(true)}
+                        className="text-cypress-600"
+                      />
+                      <span>Covered in Plan (Directly Dispatch Team)</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="planCoverage"
+                        checked={!ackPlanCovered}
+                        onChange={() => setAckPlanCovered(false)}
+                        className="text-cypress-600"
+                      />
+                      <span>Chargeable / Major Repair (Requires Owner Approval)</span>
+                    </label>
+                  </div>
+
+                  {!ackPlanCovered && (
+                    <div className="w-48">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Estimated Cost (₹)</label>
+                      <input
+                        type="number"
+                        value={ackCost}
+                        onChange={(e) => setAckCost(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900 font-bold"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Inspection remarks / dispatch note..."
+                      value={ackNote}
+                      onChange={(e) => setAckNote(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-1.5 text-xs text-slate-900"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <Button
+                      onClick={() =>
+                        acknowledgeTicket(ticket.id, ackPlanCovered, ackPlanCovered ? undefined : Number(ackCost), ackNote)
+                      }
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      {ackPlanCovered ? 'Acknowledge & Dispatch Cypress Team' : 'Request Owner Approval for ₹' + ackCost}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
         )}
+
+        {/* STAGE 2: OWNER APPROVAL STEP */}
+        {ticket.status === 'owner_approval_pending' && (
+          <Card className="border-rose-200 bg-rose-50/40 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-900">Step 2: Owner Financial Authorization Required</h4>
+                  <span className="font-extrabold text-rose-800 text-sm">{formatINR(ticket.estimated_cost || 0)}</span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  This work is categorized as a major/chargeable component replacement. The property owner must authorize before Cypress proceeds with vendor purchase and labor.
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => ownerApproveTicket(ticket.id, true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-soft hover:bg-emerald-700"
+                  >
+                    <ThumbsUp className="h-3.5 w-3.5" /> Approve Work (₹{ticket.estimated_cost})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => ownerApproveTicket(ticket.id, false)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <ThumbsDown className="h-3.5 w-3.5" /> Decline / Suggest Alternative
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* STAGE 3: IN PROGRESS / RESOLUTION (Cypress Admin Action) */}
+        {(ticket.status === 'cypress_acknowledged' || ticket.status === 'in_progress') && (
+          <Card className="border-sky-200 bg-sky-50/40 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white">
+                <Wrench className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-slate-900">Step 3: Work Underway & Resolution</h4>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Cypress technician is actively carrying out repair. Once finished, record resolution notes to notify the tenant for sign-off.
+                </p>
+
+                <div className="mt-3 space-y-3">
+                  <textarea
+                    rows={2}
+                    value={resNote}
+                    onChange={(e) => setResNote(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs text-slate-900"
+                  />
+
+                  <Button onClick={() => resolveTicket(ticket.id, resNote)}>
+                    <Check className="h-4 w-4" /> Mark Work Resolved & Notify Tenant
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* STAGE 4: TENANT ACKNOWLEDGMENT STEP */}
+        {ticket.status === 'resolved' && (
+          <Card className="border-emerald-200 bg-emerald-50/40 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                <FileCheck className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-slate-900">Step 4: Tenant Verification & Acknowledgment</h4>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  The Cypress team has marked this issue resolved. Tenant confirmation is required to close the ticket.
+                </p>
+
+                <div className="mt-4 flex gap-3">
+                  <Button onClick={() => tenantAcknowledgeTicket(ticket.id)}>
+                    <CheckCircle2 className="h-4 w-4" /> Confirm & Acknowledge Job Done
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => alert('Re-check request dispatched to Cypress manager.')}
+                    className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Request Re-check
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* CLOSED TICKET STATUS */}
+        {ticket.status === 'closed' && (
+          <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-xs font-semibold text-emerald-900 flex items-center gap-2.5">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>
+              Ticket Closed: Maintenance work was verified and acknowledged by tenant. All records archived.
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Activity Timeline / History */}
+      <Card>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
+          Audit Trail & Communication History
+        </h3>
+
+        <div className="space-y-4">
+          {(ticket.history || []).map((h, idx) => (
+            <div key={h.id || idx} className="flex items-start gap-3 text-xs">
+              <div className="mt-1 h-2 w-2 rounded-full bg-cypress-600 ring-4 ring-cypress-100 shrink-0" />
+              <div className="flex-1 rounded-xl bg-slate-50 p-3 border border-slate-100">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="font-bold text-slate-800">{h.actor_name || 'System'}</span>
+                  <span className="text-[10px]">{formatDate(h.created_at)}</span>
+                </div>
+                <p className="mt-1 text-slate-700">{h.note || `Status updated to ${h.to_status}`}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   );

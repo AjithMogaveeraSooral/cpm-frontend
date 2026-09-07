@@ -58,10 +58,14 @@ export default function WelcomePage() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: EASE }}
-                className="inline-flex items-center gap-2 rounded-full border border-cypress-200 bg-white/80 px-4 py-1.5 text-xs font-semibold text-cypress-800 backdrop-blur shadow-soft mb-6"
+                className="inline-flex flex-wrap items-center gap-2 rounded-full border border-cypress-200 bg-white/90 px-4 py-1.5 text-xs font-semibold text-cypress-900 backdrop-blur shadow-soft mb-6"
               >
-                <Sparkles className="h-3.5 w-3.5 text-cypress-600" /> ₹0 Onboarding Fee • Guaranteed
-                Tenant Screening
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Born & Founded in Bengaluru</span>
+                <span className="text-slate-300">•</span>
+                <span className="text-emerald-700 font-bold">Live in Bengaluru</span>
+                <span className="text-slate-300">•</span>
+                <span className="text-amber-700 font-bold">Hosur & Chennai (Coming Soon)</span>
               </motion.div>
 
               <motion.h1
@@ -223,6 +227,50 @@ export default function WelcomePage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ======================================================================
+                    BENGALURU STARTUP ROOTS & EXPANSION ROADMAP
+          ====================================================================== */}
+      <section className="border-b border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-cypress-950 py-12 text-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-bold text-emerald-300 mb-3">
+                <Sparkles className="h-3.5 w-3.5" /> Founded in Bengaluru (2026)
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                Born in Bengaluru to Solve Rental Chaos for Tech Hubs & NRIs
+              </h2>
+              <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Founded in Bengaluru — India&apos;s Silicon Valley — Cypress Property Management was built by property owners and tech engineers to replace informal broker networks with institutional-grade management, legal vaults, and digital rent receipts.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full md:w-auto">
+              <div className="rounded-2xl bg-white/10 p-4 border border-white/10 text-center backdrop-blur-sm">
+                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-400">
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                  Live Operations
+                </div>
+                <h4 className="text-lg font-extrabold mt-1">Bengaluru</h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">120+ units managed</p>
+              </div>
+
+              <div className="rounded-2xl bg-white/5 p-4 border border-white/10 text-center">
+                <div className="text-xs font-bold text-amber-400">Coming Soon</div>
+                <h4 className="text-lg font-extrabold mt-1 text-slate-200">Hosur</h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">Industrial corridor</p>
+              </div>
+
+              <div className="rounded-2xl bg-white/5 p-4 border border-white/10 text-center">
+                <div className="text-xs font-bold text-amber-400">Coming Soon</div>
+                <h4 className="text-lg font-extrabold mt-1 text-slate-200">Chennai</h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">OMR & ECR metro</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

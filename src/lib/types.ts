@@ -147,6 +147,20 @@ export interface AdminUser {
   created_at: string;
 }
 
+// DirectoryUser represents a formal user record for owner/tenant linking.
+export interface DirectoryUser {
+  id: string; // Unique User ID (e.g. "usr-own-001" or UUID)
+  full_name: string;
+  mobile: string;
+  email: string;
+  role: 'owner' | 'tenant' | 'cypress_admin';
+  pan?: string;
+  status: 'active' | 'pending';
+  employment_company?: string;
+  avatar_url?: string;
+  created_at?: string;
+}
+
 // AdminCreateUserInput mirrors the backend admin user-provisioning DTO.
 export interface AdminCreateUserInput {
   mobile: string;
@@ -238,7 +252,6 @@ export interface AddPropertyMediaInput {
   duration_sec?: number;
 }
 
-// PropertyMediaPresign is returned after reserving a property media slot.
 export interface PropertyMediaPresign {
   media_id: string;
   s3_key: string;
@@ -246,18 +259,148 @@ export interface PropertyMediaPresign {
   expires_in_seconds: number;
 }
 
+export interface PropertyDocument {
+  id: string;
+  property_id: string;
+  name: string;
+  type: 'pdf' | 'docx' | 'xlsx' | 'image' | 'other';
+  category: 'cypress_owner_agreement' | 'tenant_lease' | 'kyc' | 'inventory_report' | 'association_noc';
+  file_url: string;
+  size_kb: number;
+  uploaded_at: string;
+  uploaded_by: string;
+}
+
+export interface PropertyInventoryItem {
+  id: string;
+  property_id: string;
+  name: string;
+  category: 'fixture' | 'appliance' | 'furniture' | 'utility' | 'key';
+  quantity: number;
+  condition: 'good' | 'fair' | 'needs_repair';
+  notes?: string;
+}
+
+export interface AssociationMaintenanceRecord {
+  id: string;
+  property_id: string;
+  society_name: string;
+  amount: number;
+  frequency: 'monthly' | 'quarterly' | 'annual';
+  payer: 'owner' | 'tenant'; // per agreement
+  status: 'paid' | 'pending' | 'due_soon';
+  due_date: string;
+  paid_at?: string;
+  receipt_no?: string;
+}
+
+export interface MoveInOutCharge {
+  id: string;
+  property_id: string;
+  type: 'move_in' | 'move_out';
+  amount: number;
+  payer: 'owner' | 'tenant';
+  cypress_assisted: boolean;
+  status: 'scheduled' | 'completed' | 'pending_payment';
+  scheduled_date?: string;
+  notes?: string;
+}
+
+export interface VacateRequest {
+  id: string;
+  property_id: string;
+  property_upid: string;
+  initiator: 'owner' | 'tenant';
+  requested_date: string;
+  notice_period_days: number;
+  reason: string;
+  status: 'submitted' | 'acknowledged_by_cypress' | 'move_out_scheduled' | 'vacated';
+  created_at: string;
+}
+
+export interface RentReceipt {
+  id: string;
+  receipt_no: string;
+  property_id: string;
+  property_upid: string;
+  property_address: string;
+  owner_id: string;
+  owner_name: string;
+  owner_pan?: string;
+  tenant_id: string;
+  tenant_name: string;
+  month_year: string; // e.g. "August 2026"
+  rent_amount: number;
+  maintenance_amount?: number;
+  advance_amount?: number;
+  total_amount: number;
+  payment_mode: 'UPI' | 'NEFT' | 'IMPS' | 'Cheque' | 'Cash';
+  transaction_id: string;
+  payment_date: string;
+  generated_by: string;
+  created_at: string;
+  notes?: string;
+}
+
+export interface RentHistoryItem {
+  id: string;
+  period: string;
+  rent_amount: number;
+  maintenance_amount: number;
+  advance_balance: number;
+  status: 'paid' | 'pending' | 'overdue';
+  paid_at?: string;
+  receipt_id?: string;
+  receipt_no?: string;
+}
+
+export interface CityOption {
+  id: string;
+  name: string;
+  code: string;
+  state: string;
+  status: 'active' | 'coming_soon';
+  description?: string;
+}
+
+export interface RenewalAlert {
+  id: string;
+  property_id: string;
+  property_upid: string;
+  property_name: string;
+  plan_tier: string;
+  expires_at: string;
+  days_left: number;
+  type: 'plan_renewal' | 'lease_renewal';
+}
+
 export interface Property {
   id: string;
   upid: string;
   owner_id: string;
+  owner_name?: string;
+  owner_phone?: string;
+  owner_email?: string;
+  owner_pan?: string;
+  city_id?: string;
+  city_name?: string;
+  locality_name?: string;
+  apartment_name?: string;
   flat_no: string;
   property_type: string;
   bhk: number;
+  area_sqft?: number;
   furnishing: string;
   monthly_rent: number;
   deposit: number;
-  occupancy_status: string;
+  occupancy_status: 'vacant' | 'occupied' | 'maintenance';
   is_listed: boolean;
+  plan_id?: string;
+  plan_tier?: 'bronze' | 'silver' | 'gold';
+  plan_name?: string;
+  plan_commission_pct?: number;
+  plan_sla_hours?: number;
+  plan_expires_at?: string;
   latitude?: number;
   longitude?: number;
   google_place_id?: string;
@@ -266,6 +409,19 @@ export interface Property {
   pincode?: string;
   version: number;
   created_at: string;
+  active_tenant_id?: string;
+  active_tenant_name?: string;
+  active_tenant_phone?: string;
+  active_tenant_email?: string;
+  lease_start_date?: string;
+  lease_end_date?: string;
+  association_maintenance?: AssociationMaintenanceRecord;
+  move_charges?: MoveInOutCharge[];
+  vacate_request?: VacateRequest;
+  documents?: PropertyDocument[];
+  inventory?: PropertyInventoryItem[];
+  media_photos?: string[];
+  media_video?: string;
 }
 
 export interface Ticket {
@@ -273,12 +429,18 @@ export interface Ticket {
   property_upid: string;
   property_id: string;
   created_by: string;
+  created_by_name?: string;
+  created_by_role?: 'tenant' | 'owner' | 'cypress_admin';
   vendor_id?: string;
-  category: string;
+  category: 'electrical' | 'carpenter' | 'plumber' | 'appliance' | 'painting' | 'general';
   title: string;
   description?: string;
-  priority: string;
-  status: string;
+  priority: 'low' | 'medium' | 'high' | 'emergency';
+  status: 'open' | 'cypress_acknowledged' | 'owner_approval_pending' | 'in_progress' | 'resolved' | 'closed' | 'rejected';
+  plan_covered: boolean;
+  owner_approval_status?: 'pending' | 'approved' | 'rejected';
+  estimated_cost?: number;
+  tenant_acknowledged?: boolean;
   sla_hours: number;
   sla_due_at: string;
   resolved_at?: string;
@@ -296,6 +458,7 @@ export interface TicketHistory {
   to_status: string;
   note?: string;
   actor_id: string;
+  actor_name?: string;
   created_at: string;
 }
 
@@ -334,7 +497,6 @@ export interface PresignedUpload {
   expires_in_sec: number;
 }
 
-
 export interface DashboardSummary {
   properties: { total: number; listed: number; occupied: number };
   tenancies: { active: number; proposed: number };
@@ -343,3 +505,4 @@ export interface DashboardSummary {
   new_leads: number;
   active_vouchers: number;
 }
+

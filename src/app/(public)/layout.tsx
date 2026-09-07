@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Building2, PhoneCall, PlusCircle, Menu, X } from 'lucide-react';
 import { LeadModal, ModalType } from '@/components/lead-modal';
 import { ThemeSwitcher } from '@/components/theme-switcher';
+import { CitySelector } from '@/components/city-selector';
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -42,7 +43,10 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           </Link>
 
           {/* Nav Links */}
-          <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 lg:flex">
+          <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex">
+            <Link href="/explore" className="font-semibold text-cypress-700 transition-colors hover:text-cypress-900">
+              Browse Properties
+            </Link>
             <Link href="/welcome#plans" className="transition-colors hover:text-cypress-700">
               Services & Plans
             </Link>
@@ -62,12 +66,13 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
 
           {/* Action CTAs */}
           <div className="hidden items-center gap-3 text-sm md:flex">
+            <CitySelector variant="compact" />
             <ThemeSwitcher />
             <Link
               href="/login"
               className="font-medium text-slate-600 transition-colors hover:text-cypress-700 px-3 py-2 rounded-lg hover:bg-slate-100"
             >
-              Login
+              Console Login
             </Link>
             
             <button

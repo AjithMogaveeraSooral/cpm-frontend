@@ -158,9 +158,9 @@ export default function SignupPage() {
             <p className="text-sm text-slate-500">
               We sent a code to <strong>{mobile}</strong> for your {userTypeLabel(role)} registration.
             </p>
-            {otpSent?.mock && (
-              <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                Mock SMS mode — dev code: <strong>{otpSent.devCode}</strong>
+            {otpSent && (
+              <p className="rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                OTP verification code has been dispatched to your mobile.
               </p>
             )}
             <Input label="OTP" placeholder="123456" {...verifyForm.register('code')} error={verifyForm.formState.errors.code?.message} />

@@ -11,6 +11,7 @@ import { Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-store';
+import { useDataStore } from '@/lib/data-store';
 import { ApiError } from '@/lib/api-client';
 import { USER_TYPES } from '@/lib/user-types';
 import type { Role } from '@/lib/types';
@@ -44,6 +45,7 @@ export default function LoginPage() {
     try {
       await loginWithPassword(values.mobile, values.password, role);
       const u = useAuth.getState().user;
+      useDataStore.getState().switchRole(role as 'cypress_admin' | 'owner' | 'tenant');
       router.replace(u && u.roles.length > 0 ? '/dashboard' : '/pending');
     } catch (e) {
       setServerError(e instanceof ApiError ? e.message : 'Login failed');
@@ -70,6 +72,7 @@ export default function LoginPage() {
     try {
       await verifyOtp(values.mobile, values.code, 'login', role);
       const u = useAuth.getState().user;
+      useDataStore.getState().switchRole(role as 'cypress_admin' | 'owner' | 'tenant');
       router.replace(u && u.roles.length > 0 ? '/dashboard' : '/pending');
     } catch (e) {
       setServerError(e instanceof ApiError ? e.message : 'Verification failed');
@@ -102,6 +105,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-5">
+            <label className="block text-xs font-semibold text-slate-700 mb-2">Select Account Portal</label>
             <div className="grid grid-cols-3 gap-2">
               {USER_TYPES.map((t) => (
                 <button
@@ -110,7 +114,7 @@ export default function LoginPage() {
                   onClick={() => setRole(t.value)}
                   className={`rounded-xl border px-2 py-2.5 text-xs font-medium transition-all duration-200 active:scale-95 ${
                     role === t.value
-                      ? 'border-cypress-500 bg-cypress-50 text-cypress-700 shadow-glow-sm'
+                      ? 'border-cypress-500 bg-cypress-50 text-cypress-700 shadow-glow-sm font-semibold'
                       : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
@@ -135,7 +139,9 @@ export default function LoginPage() {
           </div>
 
           {serverError && (
-            <p className="mb-4 animate-fade-in rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{serverError}</p>
+            <div className="mb-4 animate-fade-in rounded-xl bg-red-50 p-3 text-sm text-red-700 border border-red-200">
+              <p className="font-medium">{serverError}</p>
+            </div>
           )}
 
           <AnimatePresence mode="wait">
@@ -148,20 +154,20 @@ export default function LoginPage() {
             >
               {mode === 'password' ? (
                 <form onSubmit={pwForm.handleSubmit(onPasswordSubmit)} className="flex flex-col gap-4">
-                  <Input label="Mobile" placeholder="9876543210" {...pwForm.register('mobile')} error={pwForm.formState.errors.mobile?.message} />
-                  <Input label="Password" type="password" {...pwForm.register('password')} error={pwForm.formState.errors.password?.message} />
+                  <Input label="Mobile" placeholder="Enter mobile number" {...pwForm.register('mobile')} error={pwForm.formState.errors.mobile?.message} />
+                  <Input label="Password" type="password" placeholder="Enter password" {...pwForm.register('password')} error={pwForm.formState.errors.password?.message} />
                   <Button type="submit" size="lg" loading={pwForm.formState.isSubmitting}>Sign in</Button>
                 </form>
               ) : (
                 <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="flex flex-col gap-4">
-                  <Input label="Mobile" placeholder="9876543210" {...otpForm.register('mobile')} error={otpForm.formState.errors.mobile?.message} />
+                  <Input label="Mobile" placeholder="Enter mobile number" {...otpForm.register('mobile')} error={otpForm.formState.errors.mobile?.message} />
                   <div className="flex items-end gap-2">
-                    <Input label="OTP" placeholder="123456" className="flex-1" {...otpForm.register('code')} error={otpForm.formState.errors.code?.message} />
+                    <Input label="OTP" placeholder="6-digit OTP" className="flex-1" {...otpForm.register('code')} error={otpForm.formState.errors.code?.message} />
                     <Button type="button" variant="secondary" onClick={sendOtp}>Send OTP</Button>
                   </div>
-                  {otpSent?.mock && (
-                    <p className="animate-fade-in rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                      Mock SMS mode — dev code: <strong>{otpSent.devCode}</strong>
+                  {otpSent && (
+                    <p className="animate-fade-in rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                      OTP verification code has been dispatched to your mobile.
                     </p>
                   )}
                   <Button type="submit" size="lg" loading={otpForm.formState.isSubmitting}>Verify &amp; sign in</Button>

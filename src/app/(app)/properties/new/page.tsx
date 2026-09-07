@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { LocationPicker, type LocationValue } from '@/components/ui/location-picker';
+import { useDataStore } from '@/lib/data-store';
 import type {
   AdminUser,
   Amenity,
@@ -140,7 +141,24 @@ export default function NewPropertyPage() {
   const apartments = apartmentsQ.data?.data ?? [];
   const plans = plansQ.data?.data ?? [];
   const amenities = amenitiesQ.data?.data ?? [];
-  const owners = ownersQ.data?.data ?? [];
+  const backendOwners = ownersQ.data?.data;
+  const registeredUsers = useDataStore((s) => s.registeredUsers);
+  const storeOwners = registeredUsers.filter((u) => u.role === 'owner');
+
+  // Combine backend owners with registered owners from directory store
+  const allOwners = useMemo(() => {
+    const list = backendOwners ?? [];
+    const map = new Map<string, { id: string; name: string; mobile: string }>();
+    list.forEach((o) => {
+      map.set(o.id, { id: o.id, name: o.full_name || o.mobile, mobile: o.mobile });
+    });
+    storeOwners.forEach((so) => {
+      if (!map.has(so.id)) {
+        map.set(so.id, { id: so.id, name: so.full_name, mobile: so.mobile });
+      }
+    });
+    return Array.from(map.values());
+  }, [backendOwners, storeOwners]);
   // Reset dependent selects when the parent geography changes.
   useEffect(() => {
     setValue('locality_id', '');
@@ -294,23 +312,30 @@ export default function NewPropertyPage() {
         {/* Owner assignment (admin only) */}
         {isAdmin && (
           <Card>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Owner
-            </h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Owner User ID Assignment
+              </h2>
+              <span className="text-[11px] font-mono text-cypress-700 bg-cypress-50 border border-cypress-200 px-2 py-0.5 rounded">
+                Linked User ID
+              </span>
+            </div>
+            <p className="mb-4 text-xs text-slate-500">
+              Assign this property to a registered Owner User account. Statements, rental payouts, and maintenance approvals route to this User ID.
+            </p>
             <div className="flex flex-col gap-1">
-              <label className={labelCls}>Assign to owner</label>
-              <select className={selectCls} disabled={ownersQ.isLoading} {...register('owner_id')}>
-                <option value="">Select owner…</option>
-                {owners.map((o) => (
+              <label className={labelCls}>Assign to Owner User ID</label>
+              <select className={selectCls} disabled={ownersQ.isLoading && allOwners.length === 0} {...register('owner_id')}>
+                <option value="">Select owner user account…</option>
+                {allOwners.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {o.full_name || o.mobile} · {o.mobile}
+                    [{o.id}] · {o.name} ({o.mobile})
                   </option>
                 ))}
               </select>
-              {ownersQ.isLoading && <p className="text-xs text-slate-400">Loading owners…</p>}
-              {!ownersQ.isLoading && owners.length === 0 && (
+              {allOwners.length === 0 && (
                 <p className="text-xs text-amber-600">
-                  No owners yet. Create an owner in Property Owners first.
+                  No owners registered yet. Create an owner in Property Owners first.
                 </p>
               )}
             </div>
