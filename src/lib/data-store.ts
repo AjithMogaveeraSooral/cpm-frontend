@@ -20,6 +20,7 @@ import type {
   UserSummary,
 } from './types';
 import { useAuth } from './auth-store';
+import { api } from './api-client';
 
 export const CITIES_MASTER: CityOption[] = [
   {
@@ -78,536 +79,115 @@ export const SERVICE_PLANS: ServicePlan[] = [
   },
 ];
 
-export const INITIAL_DIRECTORY_USERS: DirectoryUser[] = [
-  // Registered Property Owners
-  {
-    id: 'user-owner-1',
-    full_name: 'Ramesh Kumar',
-    mobile: '+91 98765 43210',
-    email: 'ramesh.kumar@cypress.local',
-    role: 'owner',
-    pan: 'ABCDE1234F',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-    created_at: '2025-01-10T09:00:00Z',
-  },
-  {
-    id: 'user-owner-2',
-    full_name: 'Priya Sundaram',
-    mobile: '+91 98765 11223',
-    email: 'priya.s@cypress.local',
-    role: 'owner',
-    pan: 'FGHIJ5678K',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80',
-    created_at: '2025-02-14T11:20:00Z',
-  },
-  {
-    id: 'user-owner-3',
-    full_name: 'Vikramaditya Hegde',
-    mobile: '+91 98765 99887',
-    email: 'vikram.hegde@cypress.local',
-    role: 'owner',
-    pan: 'KLMNO9012P',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
-    created_at: '2025-03-01T15:40:00Z',
-  },
-  {
-    id: 'user-owner-4',
-    full_name: 'Sangeetha Narayanan',
-    mobile: '+91 98765 44332',
-    email: 'sangeetha.n@cypress.local',
-    role: 'owner',
-    pan: 'PQRST3456U',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&auto=format&fit=crop&q=80',
-    created_at: '2025-04-18T10:15:00Z',
-  },
+// Directory users are provisioned via the backend admin API (`/auth/users`).
+// No hardcoded owners/tenants are seeded on the client.
+export const INITIAL_DIRECTORY_USERS: DirectoryUser[] = [];
 
-  // Registered Tenants
-  {
-    id: 'user-tenant-1',
-    full_name: 'Rahul Sharma',
-    mobile: '+91 98765 43222',
-    email: 'rahul.tenant@cypress.local',
-    role: 'tenant',
-    pan: 'TENNT1122A',
-    employment_company: 'Infosys Technologies Ltd',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-    created_at: '2025-05-20T14:30:00Z',
-  },
-  {
-    id: 'user-tenant-2',
-    full_name: 'Sneha Kulkarni',
-    mobile: '+91 98765 77665',
-    email: 'sneha.kulkarni@cypress.local',
-    role: 'tenant',
-    pan: 'TENNT3344B',
-    employment_company: 'Cisco Systems India',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80',
-    created_at: '2025-06-12T08:50:00Z',
-  },
-  {
-    id: 'user-tenant-3',
-    full_name: 'Amitav Roy',
-    mobile: '+91 98765 88990',
-    email: 'amitav.roy@cypress.local',
-    role: 'tenant',
-    pan: 'TENNT5566C',
-    employment_company: 'Flipkart Internet Pvt Ltd',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80',
-    created_at: '2025-07-04T12:10:00Z',
-  },
-  {
-    id: 'user-tenant-4',
-    full_name: 'Divya Chandran',
-    mobile: '+91 98765 22334',
-    email: 'divya.c@cypress.local',
-    role: 'tenant',
-    pan: 'TENNT7788D',
-    employment_company: 'Google India (RMZ Infinity)',
-    status: 'active',
-    avatar_url: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=120&auto=format&fit=crop&q=80',
-    created_at: '2025-08-19T16:00:00Z',
-  },
-];
+// Properties are created and managed through the onboarding flow / backend.
+// No hardcoded demo properties are seeded on the client.
+const INITIAL_PROPERTIES: Property[] = [];
 
-const INITIAL_PROPERTIES: Property[] = [
-  {
-    id: 'prop-1',
-    upid: 'CPM-BLR-KNG-PRST-A804',
-    owner_id: 'user-owner-1',
-    owner_name: 'Ramesh Kumar',
-    owner_phone: '+91 98765 43210',
-    owner_email: 'ramesh.kumar@cypress.local',
-    owner_pan: 'ABCDE1234F',
-    city_id: 'city-blr',
-    city_name: 'Bengaluru',
-    locality_name: 'Kanakapura Road',
-    apartment_name: 'Prestige Falcon City',
-    flat_no: 'A-804',
-    property_type: 'apartment',
-    bhk: 3,
-    area_sqft: 1820,
-    furnishing: 'semi',
-    monthly_rent: 42000,
-    deposit: 250000,
-    occupancy_status: 'occupied',
-    is_listed: false,
-    plan_id: 'plan-gold',
-    plan_tier: 'gold',
-    plan_name: 'Gold NRI Prime',
-    plan_commission_pct: 15,
-    plan_sla_hours: 24,
-    plan_expires_at: '2027-03-31T00:00:00Z',
-    address: 'Tower A, Flat 804, Prestige Falcon City, Kanakapura Main Rd, Doddakallasandra, Bengaluru',
-    landmark: 'Opposite Forum Falcon City Mall',
-    pincode: '560062',
-    version: 3,
-    created_at: '2025-06-15T10:00:00Z',
-    active_tenant_id: 'user-tenant-1',
-    active_tenant_name: 'Rahul Sharma',
-    active_tenant_phone: '+91 98765 43222',
-    lease_start_date: '2025-07-01T00:00:00Z',
-    lease_end_date: '2026-06-30T00:00:00Z',
-    association_maintenance: {
-      id: 'maint-1',
-      property_id: 'prop-1',
-      society_name: 'Prestige Falcon City Apartment Owners Association',
-      amount: 4500,
-      frequency: 'monthly',
-      payer: 'tenant', // Paid by tenant as per lease agreement
-      status: 'paid',
-      due_date: '2026-09-10T00:00:00Z',
-      paid_at: '2026-09-02T14:20:00Z',
-      receipt_no: 'PFCAOA-2026-SEP-084',
-    },
-    move_charges: [
-      {
-        id: 'charge-1',
-        property_id: 'prop-1',
-        type: 'move_in',
-        amount: 5000,
-        payer: 'tenant',
-        cypress_assisted: true,
-        status: 'completed',
-        scheduled_date: '2025-07-01',
-        notes: 'Pre-inspection completed, association move-in fee paid and receipt filed.',
-      },
-      {
-        id: 'charge-2',
-        property_id: 'prop-1',
-        type: 'move_out',
-        amount: 5000,
-        payer: 'tenant',
-        cypress_assisted: true,
-        status: 'scheduled',
-        notes: 'Deposit settlement checklist and exit inspection to be assisted by Cypress on lease completion.',
-      },
-    ],
-    documents: [
-      {
-        id: 'doc-1',
-        property_id: 'prop-1',
-        name: 'Cypress_Owner_Management_Agreement_2025_26.pdf',
-        type: 'pdf',
-        category: 'cypress_owner_agreement',
-        file_url: '#',
-        size_kb: 1420,
-        uploaded_at: '2025-06-16T11:30:00Z',
-        uploaded_by: 'Cypress Legal',
-      },
-      {
-        id: 'doc-2',
-        property_id: 'prop-1',
-        name: 'Registered_Rental_Agreement_RahulSharma.docx',
-        type: 'docx',
-        category: 'tenant_lease',
-        file_url: '#',
-        size_kb: 890,
-        uploaded_at: '2025-06-28T16:00:00Z',
-        uploaded_by: 'Cypress Admin',
-      },
-      {
-        id: 'doc-3',
-        property_id: 'prop-1',
-        name: 'Owner_KYC_PAN_Aadhaar_Verified.pdf',
-        type: 'pdf',
-        category: 'kyc',
-        file_url: '#',
-        size_kb: 640,
-        uploaded_at: '2025-06-15T10:45:00Z',
-        uploaded_by: 'Ramesh Kumar',
-      },
-      {
-        id: 'doc-4',
-        property_id: 'prop-1',
-        name: 'Prestige_Society_NOC_Tenant_MoveIn.pdf',
-        type: 'pdf',
-        category: 'association_noc',
-        file_url: '#',
-        size_kb: 320,
-        uploaded_at: '2025-06-30T09:15:00Z',
-        uploaded_by: 'Cypress Admin',
-      },
-    ],
-    inventory: [
-      { id: 'inv-1', property_id: 'prop-1', name: 'Daikin Inverter AC 1.5 Ton (Master Bed)', category: 'appliance', quantity: 1, condition: 'good', notes: 'Serviced July 2026' },
-      { id: 'inv-2', property_id: 'prop-1', name: 'Haier Inverter AC 1.0 Ton (Guest Bed)', category: 'appliance', quantity: 1, condition: 'good' },
-      { id: 'inv-3', property_id: 'prop-1', name: 'Racold 25L Storage Geyser', category: 'appliance', quantity: 3, condition: 'good' },
-      { id: 'inv-4', property_id: 'prop-1', name: 'Modular Kitchen with Faber Chimney & Hob', category: 'fixture', quantity: 1, condition: 'good' },
-      { id: 'inv-5', property_id: 'prop-1', name: 'Solid Teak 6-Seater Dining Table', category: 'furniture', quantity: 1, condition: 'good' },
-      { id: 'inv-6', property_id: 'prop-1', name: 'L-Shaped Fabric Sofa (3+2)', category: 'furniture', quantity: 1, condition: 'fair', notes: 'Minor fabric wear on left armrest' },
-      { id: 'inv-7', property_id: 'prop-1', name: 'Main Door Godrej Smart Lock & Master Keys', category: 'key', quantity: 3, condition: 'good', notes: 'RFID tags + 3 physical backup keys handed over' },
-    ],
-    media_photos: [
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=1200&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=1200&auto=format&fit=crop&q=80',
-    ],
-    media_video: 'https://assets.mixkit.co/videos/preview/mixkit-modern-apartment-living-room-interior-39744-large.mp4',
-  },
-  {
-    id: 'prop-2',
-    upid: 'CPM-BLR-WFD-BRGD-C402',
-    owner_id: 'user-owner-2',
-    owner_name: 'Vikram Mehta',
-    owner_phone: '+91 99001 23456',
-    owner_email: 'vikram.mehta@example.com',
-    city_id: 'city-blr',
-    city_name: 'Bengaluru',
-    locality_name: 'Whitefield',
-    apartment_name: 'Brigade Cosmopolis',
-    flat_no: 'C-402',
-    property_type: 'apartment',
-    bhk: 2,
-    area_sqft: 1350,
-    furnishing: 'full',
-    monthly_rent: 36000,
-    deposit: 180000,
-    occupancy_status: 'vacant',
-    is_listed: true,
-    plan_id: 'plan-silver',
-    plan_tier: 'silver',
-    plan_name: 'Silver Comprehensive',
-    plan_commission_pct: 10,
-    plan_sla_hours: 48,
-    plan_expires_at: '2026-11-30T00:00:00Z',
-    address: 'Tower C, Flat 402, Brigade Cosmopolis, ITPL Main Rd, Whitefield, Bengaluru',
-    landmark: 'Near Hope Farm Junction',
-    pincode: '560066',
-    version: 1,
-    created_at: '2026-01-10T14:00:00Z',
-    association_maintenance: {
-      id: 'maint-2',
-      property_id: 'prop-2',
-      society_name: 'Brigade Cosmopolis Resident Welfare Association',
-      amount: 3800,
-      frequency: 'monthly',
-      payer: 'owner', // Paid by owner while vacant
-      status: 'paid',
-      due_date: '2026-09-15T00:00:00Z',
-      receipt_no: 'BCRWA-2026-AUG-112',
-    },
-    documents: [
-      {
-        id: 'doc-201',
-        property_id: 'prop-2',
-        name: 'Cypress_Silver_Management_Agreement_VikramMehta.pdf',
-        type: 'pdf',
-        category: 'cypress_owner_agreement',
-        file_url: '#',
-        size_kb: 1150,
-        uploaded_at: '2026-01-11T12:00:00Z',
-        uploaded_by: 'Cypress Legal',
-      },
-    ],
-    inventory: [
-      { id: 'inv-201', property_id: 'prop-2', name: 'LG 43-inch 4K Smart TV', category: 'appliance', quantity: 1, condition: 'good' },
-      { id: 'inv-202', property_id: 'prop-2', name: 'Samsung Double Door Refrigerator 265L', category: 'appliance', quantity: 1, condition: 'good' },
-      { id: 'inv-203', property_id: 'prop-2', name: 'Bosch Front Load Washing Machine 7kg', category: 'appliance', quantity: 1, condition: 'good' },
-      { id: 'inv-204', property_id: 'prop-2', name: 'Queen Bed with Orthopedic Mattress (2 rooms)', category: 'furniture', quantity: 2, condition: 'good' },
-    ],
-    media_photos: [
-      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&auto=format&fit=crop&q=80',
-    ],
-  },
-  {
-    id: 'prop-3',
-    upid: 'CPM-BLR-SJP-SBHA-B1201',
-    owner_id: 'user-owner-1',
-    owner_name: 'Ramesh Kumar',
-    owner_phone: '+91 98765 43210',
-    owner_email: 'ramesh.kumar@cypress.local',
-    city_id: 'city-blr',
-    city_name: 'Bengaluru',
-    locality_name: 'Sarjapur Road',
-    apartment_name: 'Sobha Dream Acres',
-    flat_no: 'B-1201',
-    property_type: 'apartment',
-    bhk: 2,
-    area_sqft: 1210,
-    furnishing: 'unfurnished',
-    monthly_rent: 28000,
-    deposit: 150000,
-    occupancy_status: 'occupied',
-    is_listed: false,
-    plan_id: 'plan-bronze',
-    plan_tier: 'bronze',
-    plan_name: 'Bronze Essential',
-    plan_commission_pct: 5,
-    plan_sla_hours: 72,
-    plan_expires_at: '2026-09-25T00:00:00Z', // Expiring in 18 days! -> Nearing renewal!
-    address: 'Wing B, Flat 1201, Sobha Dream Acres, Panathur Main Rd, Off Sarjapur Rd, Bengaluru',
-    landmark: 'Near Varthur Police Station',
-    pincode: '560087',
-    version: 2,
-    created_at: '2025-09-25T11:00:00Z',
-    active_tenant_id: 'user-tenant-2',
-    active_tenant_name: 'Deepak Nair',
-    active_tenant_phone: '+91 98450 11223',
-    lease_start_date: '2025-10-01T00:00:00Z',
-    lease_end_date: '2026-09-30T00:00:00Z', // Lease also ending this month!
-    association_maintenance: {
-      id: 'maint-3',
-      property_id: 'prop-3',
-      society_name: 'Sobha Dream Acres Owners Association',
-      amount: 3200,
-      frequency: 'monthly',
-      payer: 'tenant',
-      status: 'pending',
-      due_date: '2026-09-10T00:00:00Z',
-    },
-    documents: [
-      {
-        id: 'doc-301',
-        property_id: 'prop-3',
-        name: 'Sobha_DreamAcres_Bronze_Agreement.pdf',
-        type: 'pdf',
-        category: 'cypress_owner_agreement',
-        file_url: '#',
-        size_kb: 940,
-        uploaded_at: '2025-09-26T10:00:00Z',
-        uploaded_by: 'Cypress Legal',
-      },
-    ],
-    inventory: [
-      { id: 'inv-301', property_id: 'prop-3', name: 'Havells Ceiling Fans with Speed Regulators', category: 'fixture', quantity: 4, condition: 'good' },
-      { id: 'inv-302', property_id: 'prop-3', name: 'Water Purifier Aquaguard Ro+UV', category: 'appliance', quantity: 1, condition: 'fair', notes: 'Filter replacement due in 3 months' },
-    ],
-    media_photos: [
-      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200&auto=format&fit=crop&q=80',
-    ],
-  },
-];
+const INITIAL_RECEIPTS: RentReceipt[] = [];
 
-const INITIAL_RECEIPTS: RentReceipt[] = [
-  {
-    id: 'rec-001',
-    receipt_no: 'CPM-REC-2026-08-012',
-    property_id: 'prop-1',
-    property_upid: 'CPM-BLR-KNG-PRST-A804',
-    property_address: 'Flat A-804, Prestige Falcon City, Kanakapura Main Rd, Bengaluru 560062',
-    owner_id: 'user-owner-1',
-    owner_name: 'Ramesh Kumar',
-    owner_pan: 'ABCDE1234F',
-    tenant_id: 'user-tenant-1',
-    tenant_name: 'Rahul Sharma',
-    month_year: 'August 2026',
-    rent_amount: 42000,
-    maintenance_amount: 4500,
-    advance_amount: 0,
-    total_amount: 46500,
-    payment_mode: 'UPI',
-    transaction_id: 'UPI-HDFC-623498112344',
-    payment_date: '2026-08-04',
-    generated_by: 'Cypress Administrator (Automated Post Rent Verification)',
-    created_at: '2026-08-05T10:15:00Z',
-    notes: 'Official rent payment receipt for HRA tax exemption proof.',
-  },
-  {
-    id: 'rec-002',
-    receipt_no: 'CPM-REC-2026-07-009',
-    property_id: 'prop-1',
-    property_upid: 'CPM-BLR-KNG-PRST-A804',
-    property_address: 'Flat A-804, Prestige Falcon City, Kanakapura Main Rd, Bengaluru 560062',
-    owner_id: 'user-owner-1',
-    owner_name: 'Ramesh Kumar',
-    owner_pan: 'ABCDE1234F',
-    tenant_id: 'user-tenant-1',
-    tenant_name: 'Rahul Sharma',
-    month_year: 'July 2026',
-    rent_amount: 42000,
-    maintenance_amount: 4500,
-    advance_amount: 0,
-    total_amount: 46500,
-    payment_mode: 'NEFT',
-    transaction_id: 'NEFT-ICIC-0982218491',
-    payment_date: '2026-07-03',
-    generated_by: 'Cypress Administrator',
-    created_at: '2026-07-04T09:30:00Z',
-  },
-];
+const INITIAL_RENT_HISTORY: RentHistoryItem[] = [];
 
-const INITIAL_RENT_HISTORY: RentHistoryItem[] = [
-  { id: 'rh-1', period: 'August 2026', rent_amount: 42000, maintenance_amount: 4500, advance_balance: 250000, status: 'paid', paid_at: '2026-08-04', receipt_id: 'rec-001', receipt_no: 'CPM-REC-2026-08-012' },
-  { id: 'rh-2', period: 'July 2026', rent_amount: 42000, maintenance_amount: 4500, advance_balance: 250000, status: 'paid', paid_at: '2026-07-03', receipt_id: 'rec-002', receipt_no: 'CPM-REC-2026-07-009' },
-  { id: 'rh-3', period: 'June 2026', rent_amount: 42000, maintenance_amount: 4500, advance_balance: 250000, status: 'paid', paid_at: '2026-06-05', receipt_no: 'CPM-REC-2026-06-004' },
-  { id: 'rh-4', period: 'May 2026', rent_amount: 42000, maintenance_amount: 4500, advance_balance: 250000, status: 'paid', paid_at: '2026-05-04', receipt_no: 'CPM-REC-2026-05-018' },
-  { id: 'rh-5', period: 'September 2026', rent_amount: 42000, maintenance_amount: 4500, advance_balance: 250000, status: 'pending' },
-];
+const INITIAL_TICKETS: Ticket[] = [];
 
-const INITIAL_TICKETS: Ticket[] = [
-  {
-    id: 'tkt-1',
-    property_upid: 'CPM-BLR-KNG-PRST-A804',
-    property_id: 'prop-1',
-    created_by: 'user-tenant-1',
-    created_by_name: 'Rahul Sharma',
-    created_by_role: 'tenant',
-    category: 'electrical',
-    title: 'Master Bedroom AC trip switch / MCB sparking',
-    description: 'The 16A MCB in the distribution board trips whenever the master bedroom AC is turned on for more than 10 minutes. Smells like burnt plastic.',
-    priority: 'high',
-    status: 'cypress_acknowledged',
-    plan_covered: true, // Covered under Gold NRI Prime plan routine electrical maintenance!
-    sla_hours: 24,
-    sla_due_at: '2026-09-08T18:00:00Z',
-    version: 2,
-    created_at: '2026-09-07T08:30:00Z',
-    history: [
-      { id: 'th-1', ticket_id: 'tkt-1', to_status: 'open', note: 'Ticket raised by tenant Rahul Sharma. Owner Ramesh Kumar and Cypress Ops notified.', actor_id: 'user-tenant-1', actor_name: 'Rahul Sharma', created_at: '2026-09-07T08:30:00Z' },
-      { id: 'th-2', ticket_id: 'tkt-1', from_status: 'open', to_status: 'cypress_acknowledged', note: 'Cypress acknowledged ticket. Checked property plan: Gold NRI Prime — Covered in plan at no extra charge to owner. Electrician team dispatched.', actor_id: 'user-admin', actor_name: 'Cypress Operations', created_at: '2026-09-07T09:45:00Z' },
-    ],
-  },
-  {
-    id: 'tkt-2',
-    property_upid: 'CPM-BLR-KNG-PRST-A804',
-    property_id: 'prop-1',
-    created_by: 'user-tenant-1',
-    created_by_name: 'Rahul Sharma',
-    created_by_role: 'tenant',
-    category: 'plumber',
-    title: 'Kitchen Sink Tap aerator pipe leakage',
-    description: 'Slow leak under the modular sink basket. Water seeping into lower wooden cabinet.',
-    priority: 'medium',
-    status: 'owner_approval_pending',
-    plan_covered: false, // Heavy replacement requires owner sign-off
-    estimated_cost: 1800,
-    owner_approval_status: 'pending',
-    sla_hours: 48,
-    sla_due_at: '2026-09-09T14:00:00Z',
-    version: 2,
-    created_at: '2026-09-06T14:00:00Z',
-    history: [
-      { id: 'th-201', ticket_id: 'tkt-2', to_status: 'open', note: 'Ticket raised by tenant. Owner and Cypress notified.', actor_id: 'user-tenant-1', actor_name: 'Rahul Sharma', created_at: '2026-09-06T14:00:00Z' },
-      { id: 'th-202', ticket_id: 'tkt-2', from_status: 'open', to_status: 'owner_approval_pending', note: 'Cypress technician inspected. Brass angle valve & flexi hose replacement required (₹1,800). Owner approval requested.', actor_id: 'user-admin', actor_name: 'Cypress Operations', created_at: '2026-09-06T17:00:00Z' },
-    ],
-  },
-  {
-    id: 'tkt-3',
-    property_upid: 'CPM-BLR-KNG-PRST-A804',
-    property_id: 'prop-1',
-    created_by: 'user-tenant-1',
-    created_by_name: 'Rahul Sharma',
-    created_by_role: 'tenant',
-    category: 'carpenter',
-    title: 'Balcony sliding mesh door realignment',
-    description: 'Sliding mosquito mesh track was jammed after heavy rains. Rollers replaced and lubricated.',
-    priority: 'low',
-    status: 'resolved',
-    plan_covered: true,
-    tenant_acknowledged: false,
-    sla_hours: 48,
-    sla_due_at: '2026-09-05T12:00:00Z',
-    resolved_at: '2026-09-05T11:20:00Z',
-    version: 4,
-    created_at: '2026-09-04T09:00:00Z',
-    history: [
-      { id: 'th-301', ticket_id: 'tkt-3', to_status: 'open', actor_id: 'user-tenant-1', created_at: '2026-09-04T09:00:00Z' },
-      { id: 'th-302', ticket_id: 'tkt-3', from_status: 'open', to_status: 'cypress_acknowledged', actor_id: 'user-admin', created_at: '2026-09-04T10:00:00Z' },
-      { id: 'th-303', ticket_id: 'tkt-3', from_status: 'cypress_acknowledged', to_status: 'resolved', note: 'Carpenter Ramesh Babu completed the roller replacement. Awaiting tenant final acknowledgment.', actor_id: 'user-admin', created_at: '2026-09-05T11:20:00Z' },
-    ],
-  },
-];
+const INITIAL_LEADS: Lead[] = [];
 
-const INITIAL_LEADS: Lead[] = [
-  {
-    id: 'lead-1',
-    type: 'enquiry',
-    name: 'Suresh Nambiar',
-    phone: '9845098765',
-    email: 'suresh.nambiar@gmail.com',
-    message: '[Property Owner Interest] Looking to onboard my 3BHK flat at Brigade Meadows, Kanakapura Road for complete NRI tenant search and maintenance management.',
-    status: 'new',
-    created_at: '2026-09-06T15:30:00Z',
-  },
-  {
-    id: 'lead-2',
-    type: 'callback',
-    name: 'Pooja Hegde',
-    phone: '9988776655',
-    email: 'pooja.h@yahoo.com',
-    message: 'Interested in renting a 2BHK flat near Whitefield or Sarjapur under 35k. Please call back with available options.',
-    status: 'contacted',
-    created_at: '2026-09-05T11:10:00Z',
-  },
-  {
-    id: 'lead-3',
-    type: 'enquiry',
-    name: 'Karthik Rao',
-    phone: '9740112233',
-    email: 'karthik.rao@outlook.com',
-    message: '[Property Owner Interest] Own 3BHK in Godrej Eternity, Doddakallasandra. Want to assign Silver plan.',
-    status: 'new',
-    created_at: '2026-09-07T07:45:00Z',
-  },
-];
+// ApiProperty is the backend property projection (entity.Property) returned by
+// GET /properties and GET /properties/:id. Related records are nested objects.
+interface ApiProperty {
+  id: string;
+  upid: string;
+  owner_id: string;
+  city_id?: string;
+  locality_id?: string;
+  apartment_id?: string;
+  plan_id?: string;
+  flat_no: string;
+  property_type: string;
+  bhk: number;
+  area_sqft?: number;
+  furnishing: string;
+  monthly_rent: number;
+  deposit: number;
+  occupancy_status: string;
+  is_listed: boolean;
+  latitude?: number;
+  longitude?: number;
+  google_place_id?: string;
+  address?: string;
+  landmark?: string;
+  pincode?: string;
+  version: number;
+  created_at: string;
+  plan?: { id: string; tier: string; name: string; commission_pct: number; sla_hours: number };
+  city?: { id: string; name: string };
+  locality?: { id: string; name: string };
+  apartment?: { id: string; name: string };
+  media?: { s3_key: string; media_type: string; is_cover: boolean }[];
+}
+
+// mapApiProperty flattens the backend property (with nested plan/city/locality/
+// apartment) into the flat Property shape the UI renders. Owner and tenant
+// display fields are not part of the property payload and are left unset.
+function mapApiProperty(p: ApiProperty): Property {
+  const photos = (p.media || []).filter((m) => m.media_type === 'image').map((m) => m.s3_key);
+  const video = (p.media || []).find((m) => m.media_type === 'video')?.s3_key;
+  return {
+    id: p.id,
+    upid: p.upid,
+    owner_id: p.owner_id,
+    city_id: p.city_id,
+    city_name: p.city?.name,
+    locality_name: p.locality?.name,
+    apartment_name: p.apartment?.name,
+    flat_no: p.flat_no,
+    property_type: p.property_type,
+    bhk: p.bhk,
+    area_sqft: p.area_sqft,
+    furnishing: p.furnishing,
+    monthly_rent: p.monthly_rent,
+    deposit: p.deposit,
+    occupancy_status: (p.occupancy_status as Property['occupancy_status']) || 'vacant',
+    is_listed: p.is_listed,
+    plan_id: p.plan_id,
+    plan_tier: p.plan?.tier as Property['plan_tier'],
+    plan_name: p.plan?.name,
+    plan_commission_pct: p.plan?.commission_pct,
+    plan_sla_hours: p.plan?.sla_hours,
+    latitude: p.latitude,
+    longitude: p.longitude,
+    google_place_id: p.google_place_id,
+    address: p.address,
+    landmark: p.landmark,
+    pincode: p.pincode,
+    version: p.version,
+    created_at: p.created_at,
+    ...(photos.length ? { media_photos: photos } : {}),
+    ...(video ? { media_video: video } : {}),
+  };
+}
+
+// StoredMediaAsset is a user-uploaded photo/video kept locally as a base64 data
+// URL so it can be previewed and downloaded without a storage backend.
+export interface StoredMediaAsset {
+  id: string;
+  name: string;
+  data_url: string;
+  content_type: string;
+  size_kb: number;
+  uploaded_at: string;
+}
+
+// PropertyAttachmentBucket holds the documents, photos and videos a user has
+// uploaded for a single property (client-side, persisted).
+interface PropertyAttachmentBucket {
+  documents: PropertyDocument[];
+  photos: StoredMediaAsset[];
+  videos: StoredMediaAsset[];
+}
 
 interface DataStoreState {
   currentRole: 'cypress_admin' | 'owner' | 'tenant';
@@ -621,10 +201,17 @@ interface DataStoreState {
   plans: ServicePlan[];
   renewalAlerts: RenewalAlert[];
   registeredUsers: DirectoryUser[];
+  propertyAttachments: Record<string, PropertyAttachmentBucket>;
+  propertiesLoading: boolean;
+  propertiesLoaded: boolean;
 
   // Role switching
   switchRole: (role: 'cypress_admin' | 'owner' | 'tenant') => void;
   setCity: (cityId: string) => void;
+
+  // Backend hydration — properties are sourced from the database.
+  loadPropertiesFromApi: () => Promise<void>;
+  loadPropertyFromApi: (id: string) => Promise<Property | null>;
 
   // User management & Assignment actions
   assignOwnerUser: (propertyId: string, ownerUserId: string) => void;
@@ -638,6 +225,7 @@ interface DataStoreState {
   ) => void;
   endTenancy: (propertyId: string) => void;
   registerDirectoryUser: (user: Omit<DirectoryUser, 'id'>) => DirectoryUser;
+  upsertDirectoryUser: (user: DirectoryUser) => DirectoryUser;
 
   // Property & Onboarding actions
   addProperty: (property: Partial<Property>) => Property;
@@ -650,6 +238,14 @@ interface DataStoreState {
   addDocument: (propertyId: string, doc: Omit<PropertyDocument, 'id' | 'property_id' | 'uploaded_at'>) => void;
   addInventoryItem: (propertyId: string, item: Omit<PropertyInventoryItem, 'id' | 'property_id'>) => void;
   updateInventoryCondition: (propertyId: string, itemId: string, condition: 'good' | 'fair' | 'needs_repair') => void;
+
+  // Property attachments (user-uploaded files, stored locally as data URLs)
+  addPropertyDocument: (propertyId: string, doc: Omit<PropertyDocument, 'id' | 'property_id' | 'uploaded_at'>) => void;
+  removePropertyDocument: (propertyId: string, docId: string) => void;
+  addPropertyPhotos: (propertyId: string, assets: Omit<StoredMediaAsset, 'id' | 'uploaded_at'>[]) => void;
+  removePropertyPhoto: (propertyId: string, id: string) => void;
+  addPropertyVideo: (propertyId: string, asset: Omit<StoredMediaAsset, 'id' | 'uploaded_at'>) => void;
+  removePropertyVideo: (propertyId: string, id: string) => void;
 
   // Association maintenance & move charges
   updateAssociationMaintenance: (propertyId: string, record: Partial<AssociationMaintenanceRecord>) => void;
@@ -714,12 +310,53 @@ export const useDataStore = create<DataStoreState>()(
       plans: SERVICE_PLANS,
       renewalAlerts: calculateRenewalAlerts(INITIAL_PROPERTIES),
       registeredUsers: INITIAL_DIRECTORY_USERS,
+      propertyAttachments: {},
+      propertiesLoading: false,
+      propertiesLoaded: false,
 
       switchRole: (role) => {
         set({ currentRole: role });
       },
 
       setCity: (cityId) => set({ selectedCity: cityId }),
+
+      loadPropertiesFromApi: async () => {
+        set({ propertiesLoading: true });
+        try {
+          const res = await api.get<ApiProperty[]>('/properties', {
+            query: { page: 1, page_size: 100 },
+          });
+          const mapped = (res.data ?? []).map(mapApiProperty);
+          set({
+            properties: mapped,
+            renewalAlerts: calculateRenewalAlerts(mapped),
+            propertiesLoaded: true,
+          });
+        } catch {
+          // Leave any previously loaded state intact on failure.
+          set({ propertiesLoaded: true });
+        } finally {
+          set({ propertiesLoading: false });
+        }
+      },
+
+      loadPropertyFromApi: async (id) => {
+        try {
+          const res = await api.get<ApiProperty>(`/properties/${id}`);
+          if (!res.data) return null;
+          const mapped = mapApiProperty(res.data);
+          const existing = get().properties.find((p) => p.id === mapped.id);
+          // Preserve any locally-held enrichment (owner/tenant display, docs)
+          // that the backend property payload does not carry.
+          const merged = existing ? { ...existing, ...mapped } : mapped;
+          const others = get().properties.filter((p) => p.id !== mapped.id);
+          const next = [merged, ...others];
+          set({ properties: next, renewalAlerts: calculateRenewalAlerts(next) });
+          return merged;
+        } catch {
+          return null;
+        }
+      },
 
       addProperty: (input) => {
         const id = `prop-${Date.now()}`;
@@ -962,6 +599,21 @@ export const useDataStore = create<DataStoreState>()(
         return newUser;
       },
 
+      upsertDirectoryUser: (user) => {
+        // Link a user resolved from the backend directory into the local store,
+        // preserving its real ID so assignment lookups resolve correctly.
+        const existing = get().registeredUsers.find((u) => u.id === user.id);
+        if (existing) {
+          const merged = { ...existing, ...user };
+          set({
+            registeredUsers: get().registeredUsers.map((u) => (u.id === user.id ? merged : u)),
+          });
+          return merged;
+        }
+        set({ registeredUsers: [user, ...get().registeredUsers] });
+        return user;
+      },
+
       assignTenant: (propertyId, tenantName, tenantPhone, rent, deposit, startDate) => {
         // Fallback backward-compatible method that links or creates a tenant user
         let tenant = get().registeredUsers.find(
@@ -1011,6 +663,92 @@ export const useDataStore = create<DataStoreState>()(
         };
         const props = get().properties.map((p) => (p.id === propertyId ? { ...p, documents: [...(p.documents || []), newDoc] } : p));
         set({ properties: props });
+      },
+
+      addPropertyDocument: (propertyId, doc) => {
+        const newDoc: PropertyDocument = {
+          ...doc,
+          id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          property_id: propertyId,
+          uploaded_at: new Date().toISOString(),
+        };
+        const buckets = get().propertyAttachments;
+        const bucket = buckets[propertyId] || { documents: [], photos: [], videos: [] };
+        set({
+          propertyAttachments: {
+            ...buckets,
+            [propertyId]: { ...bucket, documents: [...bucket.documents, newDoc] },
+          },
+        });
+      },
+
+      removePropertyDocument: (propertyId, docId) => {
+        const buckets = get().propertyAttachments;
+        const bucket = buckets[propertyId];
+        if (!bucket) return;
+        set({
+          propertyAttachments: {
+            ...buckets,
+            [propertyId]: { ...bucket, documents: bucket.documents.filter((d) => d.id !== docId) },
+          },
+        });
+      },
+
+      addPropertyPhotos: (propertyId, assets) => {
+        const buckets = get().propertyAttachments;
+        const bucket = buckets[propertyId] || { documents: [], photos: [], videos: [] };
+        const now = new Date().toISOString();
+        const newAssets: StoredMediaAsset[] = assets.map((a, i) => ({
+          ...a,
+          id: `photo-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+          uploaded_at: now,
+        }));
+        set({
+          propertyAttachments: {
+            ...buckets,
+            [propertyId]: { ...bucket, photos: [...bucket.photos, ...newAssets] },
+          },
+        });
+      },
+
+      removePropertyPhoto: (propertyId, id) => {
+        const buckets = get().propertyAttachments;
+        const bucket = buckets[propertyId];
+        if (!bucket) return;
+        set({
+          propertyAttachments: {
+            ...buckets,
+            [propertyId]: { ...bucket, photos: bucket.photos.filter((p) => p.id !== id) },
+          },
+        });
+      },
+
+      addPropertyVideo: (propertyId, asset) => {
+        const buckets = get().propertyAttachments;
+        const bucket = buckets[propertyId] || { documents: [], photos: [], videos: [] };
+        const newAsset: StoredMediaAsset = {
+          ...asset,
+          id: `video-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          uploaded_at: new Date().toISOString(),
+        };
+        set({
+          propertyAttachments: {
+            ...buckets,
+            [propertyId]: { ...bucket, videos: [...bucket.videos, newAsset] },
+          },
+        });
+      },
+
+      removePropertyVideo: (propertyId, id) => {
+        const buckets = get().propertyAttachments;
+        const bucket = buckets[propertyId];
+        if (!bucket) return;
+        set({
+          propertyAttachments: {
+            ...buckets,
+            [propertyId]: { ...bucket, videos: bucket.videos.filter((v) => v.id !== id) },
+          },
+        });
       },
 
       addInventoryItem: (propertyId, item) => {
@@ -1274,7 +1012,21 @@ export const useDataStore = create<DataStoreState>()(
       },
     }),
     {
-      name: 'cpm-data-store-v2',
+      name: 'cpm-data-store-v3',
+      // Properties, the user directory, and derived alerts are sourced from the
+      // backend database on each load — never persist them, so stale cached
+      // records can't leak into the UI.
+      partialize: (state) => {
+        const {
+          properties: _properties,
+          registeredUsers: _registeredUsers,
+          renewalAlerts: _renewalAlerts,
+          propertiesLoading: _propertiesLoading,
+          propertiesLoaded: _propertiesLoaded,
+          ...rest
+        } = state;
+        return rest;
+      },
     }
   )
 );

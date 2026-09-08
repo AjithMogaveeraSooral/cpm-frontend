@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -19,9 +20,10 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useDataStore } from '@/lib/data-store';
+import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { formatINR } from '@/lib/utils';
-import type { DirectoryUser } from '@/lib/types';
+import type { AdminUser, DirectoryUser } from '@/lib/types';
 
 interface UserSelectorModalProps {
   isOpen: boolean;
@@ -46,7 +48,37 @@ export function UserSelectorModal({
   initialDeposit = 200000,
   onSuccess,
 }: UserSelectorModalProps) {
-  const { registeredUsers, assignOwnerUser, assignTenantUser, registerDirectoryUser } = useDataStore();
+  const { registeredUsers, assignOwnerUser, assignTenantUser, registerDirectoryUser, upsertDirectoryUser } = useDataStore();
+
+  // Fetch the authoritative directory of users for this role from the backend.
+  const usersQuery = useQuery({
+    queryKey: ['directory-users', role],
+    queryFn: () => api.get<AdminUser[]>('/auth/users', { query: { role } }),
+    enabled: isOpen,
+  });
+
+  // Merge backend directory users with any locally-registered users of this
+  // role, deduped by id (backend record wins).
+  const roleUsers = useMemo<DirectoryUser[]>(() => {
+    const map = new Map<string, DirectoryUser>();
+    (usersQuery.data?.data ?? []).forEach((u) => {
+      map.set(u.id, {
+        id: u.id,
+        full_name: u.full_name || u.mobile,
+        mobile: u.mobile,
+        email: u.email || '',
+        role,
+        status: u.status === 'active' ? 'active' : 'pending',
+        created_at: u.created_at,
+      });
+    });
+    registeredUsers
+      .filter((u) => u.role === role)
+      .forEach((u) => {
+        if (!map.has(u.id)) map.set(u.id, u);
+      });
+    return Array.from(map.values());
+  }, [usersQuery.data, registeredUsers, role]);
 
   const [mode, setMode] = useState<'select' | 'register'>('select');
   const [searchTerm, setSearchTerm] = useState('');
@@ -79,9 +111,6 @@ export function UserSelectorModal({
 
   if (!isOpen) return null;
 
-  // Filter users by role
-  const roleUsers = registeredUsers.filter((u) => u.role === role);
-
   const filteredUsers = roleUsers.filter((u) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -94,7 +123,7 @@ export function UserSelectorModal({
     );
   });
 
-  const selectedUser = registeredUsers.find((u) => u.id === selectedUserId);
+  const selectedUser = roleUsers.find((u) => u.id === selectedUserId);
 
   const handleRegisterNewUser = (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,8 +154,12 @@ export function UserSelectorModal({
   };
 
   const handleConfirmAssignment = () => {
-    if (!selectedUserId) return;
+    if (!selectedUserId || !selectedUser) return;
     setIsSubmitting(true);
+
+    // Ensure the selected directory user (which may originate from the backend
+    // fetch) exists in the local store so the assignment lookup resolves.
+    upsertDirectoryUser(selectedUser);
 
     setTimeout(() => {
       if (role === 'owner') {

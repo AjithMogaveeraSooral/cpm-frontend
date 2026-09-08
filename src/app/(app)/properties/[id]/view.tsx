@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -30,11 +30,72 @@ import {
   Link2,
 } from 'lucide-react';
 import { useDataStore, SERVICE_PLANS } from '@/lib/data-store';
+import { api } from '@/lib/api-client';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { formatINR, formatDate } from '@/lib/utils';
 import { UserSelectorModal } from '@/components/user-selector-modal';
-import type { Property, PropertyDocument, PropertyInventoryItem } from '@/lib/types';
+import type { AdminUser, DirectoryUser, Property, PropertyDocument, PropertyInventoryItem } from '@/lib/types';
+
+// inferDocType maps a filename's extension to the stored document type, falling
+// back to the format chosen in the modal.
+function inferDocType(filename: string, fallback: PropertyDocument['type']): PropertyDocument['type'] {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return 'pdf';
+    case 'doc':
+    case 'docx':
+      return 'docx';
+    case 'xls':
+    case 'xlsx':
+      return 'xlsx';
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'webp':
+      return 'image';
+    default:
+      return fallback;
+  }
+}
+
+// openStoredFile opens an uploaded file in a new browser tab. Files uploaded from
+// the user's computer are stored as base64 `data:` URLs, and modern browsers block
+// top-level navigation to `data:` URLs for security. To work around that, we
+// convert the data URL to a Blob object URL (which browsers DO allow to open) and
+// open that instead. Regular http(s) URLs are opened directly.
+function openStoredFile(fileUrl?: string) {
+  if (!fileUrl || fileUrl === '#') return;
+
+  if (!fileUrl.startsWith('data:')) {
+    window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  try {
+    const [meta, base64] = fileUrl.split(',');
+    const contentType = meta.match(/data:(.*?);base64/)?.[1] ?? 'application/octet-stream';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: contentType });
+    const blobUrl = URL.createObjectURL(blob);
+    const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+    if (!opened) {
+      // Pop-up blocked: fall back to navigating the current tab.
+      window.location.href = blobUrl;
+    }
+    // Revoke after a delay so the new tab has time to load the resource.
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  } catch (err) {
+    console.error('Failed to open document', err);
+  }
+}
 
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>();
@@ -49,16 +110,64 @@ export default function PropertyDetailPage() {
     assignTenant,
     upgradePropertyPlan,
     updateListingStatus,
-    addDocument,
     addInventoryItem,
     updateInventoryCondition,
     updateAssociationMaintenance,
     submitVacateRequest,
     acknowledgeVacateRequest,
     renewalAlerts,
+    loadPropertyFromApi,
+    upsertDirectoryUser,
+    propertyAttachments,
+    addPropertyDocument,
+    removePropertyDocument,
+    addPropertyPhotos,
+    removePropertyPhoto,
+    addPropertyVideo,
+    removePropertyVideo,
   } = useDataStore();
 
-  const property = properties.find((p) => p.id === params.id) || properties[0];
+  const property = properties.find((p) => p.id === params.id);
+  const [loadingProperty, setLoadingProperty] = useState(true);
+
+  // The property is sourced from the database; refresh it on mount.
+  useEffect(() => {
+    let active = true;
+    setLoadingProperty(true);
+    loadPropertyFromApi(params.id).finally(() => {
+      if (active) setLoadingProperty(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [params.id, loadPropertyFromApi]);
+
+  // Tenant directory is sourced from the database (GET /auth/users?role=tenant),
+  // merged with any locally-registered tenants.
+  const tenantUsersQuery = useQuery({
+    queryKey: ['directory-users', 'tenant'],
+    queryFn: () => api.get<AdminUser[]>('/auth/users', { query: { role: 'tenant' } }),
+  });
+  const tenantUsers: DirectoryUser[] = (() => {
+    const map = new Map<string, DirectoryUser>();
+    (tenantUsersQuery.data?.data ?? []).forEach((u) => {
+      map.set(u.id, {
+        id: u.id,
+        full_name: u.full_name || u.mobile,
+        mobile: u.mobile,
+        email: u.email || '',
+        role: 'tenant',
+        status: u.status === 'active' ? 'active' : 'pending',
+        created_at: u.created_at,
+      });
+    });
+    registeredUsers
+      .filter((u) => u.role === 'tenant')
+      .forEach((u) => {
+        if (!map.has(u.id)) map.set(u.id, u);
+      });
+    return Array.from(map.values());
+  })();
 
   const [activeTab, setActiveTab] = useState<
     'overview' | 'tenant' | 'documents' | 'media' | 'inventory' | 'maintenance' | 'vacate'
@@ -84,6 +193,9 @@ export default function PropertyDetailPage() {
   const [docName, setDocName] = useState('');
   const [docType, setDocType] = useState<'pdf' | 'docx' | 'xlsx'>('pdf');
   const [docCategory, setDocCategory] = useState<PropertyDocument['category']>('cypress_owner_agreement');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
 
   // Add Inventory Item Modal
   const [showInvModal, setShowInvModal] = useState(false);
@@ -101,12 +213,18 @@ export default function PropertyDetailPage() {
   if (!property) {
     return (
       <div className="p-8 text-center">
-        <p className="text-slate-500">Property not found.</p>
-        <Link href="/properties">
-          <Button variant="secondary" className="mt-3">
-            Back to Properties
-          </Button>
-        </Link>
+        {loadingProperty ? (
+          <p className="text-slate-500">Loading property…</p>
+        ) : (
+          <>
+            <p className="text-slate-500">Property not found.</p>
+            <Link href="/properties">
+              <Button variant="secondary" className="mt-3">
+                Back to Properties
+              </Button>
+            </Link>
+          </>
+        )}
       </div>
     );
   }
@@ -117,6 +235,18 @@ export default function PropertyDetailPage() {
 
   const renewalAlert = renewalAlerts.find((a) => a.property_id === property.id);
   const isOccupied = property.occupancy_status === 'occupied';
+
+  // Merge seed/backend media with user-uploaded attachments (kept locally).
+  const attachments = propertyAttachments[property.id] || { documents: [], photos: [], videos: [] };
+  const allDocuments = [...(property.documents || []), ...attachments.documents];
+  const uploadedPhotos = attachments.photos.map((p) => ({
+    id: p.id,
+    src: p.data_url,
+    name: p.name,
+    removable: true,
+  }));
+  const allPhotos = [...uploadedPhotos];
+  const uploadedVideos = attachments.videos;
 
   const handleAssignTenant = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,17 +264,105 @@ export default function PropertyDetailPage() {
 
   const handleAddDocument = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!docName.trim()) return;
-    addDocument(property.id, {
-      name: docName.endsWith(`.${docType}`) ? docName : `${docName}.${docType}`,
-      type: docType,
-      category: docCategory,
-      file_url: '#',
-      size_kb: Math.floor(Math.random() * 800) + 200,
-      uploaded_by: isAdmin ? 'Cypress Admin' : isOwner ? 'Property Owner' : 'Tenant',
-    });
-    setDocName('');
-    setShowDocModal(false);
+    setDocError(null);
+    if (!docFile) {
+      setDocError('Please choose a file from your computer.');
+      return;
+    }
+    const MAX_DOC_MB = 8;
+    if (docFile.size > MAX_DOC_MB * 1024 * 1024) {
+      setDocError(`File exceeds the ${MAX_DOC_MB}MB limit.`);
+      return;
+    }
+    const inferredType = inferDocType(docFile.name, docType);
+    const baseName = docName.trim() || docFile.name.replace(/\.[^.]+$/, '');
+    const reader = new FileReader();
+    reader.onload = () => {
+      addPropertyDocument(property.id, {
+        name: baseName.endsWith(`.${inferredType}`) ? baseName : `${baseName}.${inferredType}`,
+        type: inferredType,
+        category: docCategory,
+        file_url: String(reader.result),
+        size_kb: Math.max(1, Math.round(docFile.size / 1024)),
+        uploaded_by: isAdmin ? 'Cypress Admin' : isOwner ? 'Property Owner' : 'Tenant',
+      });
+      setDocName('');
+      setDocFile(null);
+      setShowDocModal(false);
+    };
+    reader.onerror = () => setDocError('Could not read the selected file. Please try again.');
+    reader.readAsDataURL(docFile);
+  };
+
+  // Reads image/video files from the computer and stores them as data URLs so
+  // they can be previewed and downloaded.
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMediaError(null);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const MAX_IMG_MB = 5;
+    const accepted: File[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) {
+        setMediaError(`"${file.name}" is not an image and was skipped.`);
+        continue;
+      }
+      if (file.size > MAX_IMG_MB * 1024 * 1024) {
+        setMediaError(`"${file.name}" exceeds the ${MAX_IMG_MB}MB limit and was skipped.`);
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (accepted.length === 0) {
+      e.target.value = '';
+      return;
+    }
+    Promise.all(
+      accepted.map(
+        (file) =>
+          new Promise<{ name: string; data_url: string; content_type: string; size_kb: number }>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({
+                name: file.name,
+                data_url: String(reader.result),
+                content_type: file.type,
+                size_kb: Math.max(1, Math.round(file.size / 1024)),
+              });
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          }),
+      ),
+    )
+      .then((assets) => addPropertyPhotos(property.id, assets))
+      .catch(() => setMediaError('Could not read one or more images. Please try again.'));
+    e.target.value = '';
+  };
+
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMediaError(null);
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      setMediaError(`"${file.name}" is not a video.`);
+      return;
+    }
+    const MAX_VIDEO_MB = 25;
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      setMediaError(`"${file.name}" exceeds the ${MAX_VIDEO_MB}MB limit.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () =>
+      addPropertyVideo(property.id, {
+        name: file.name,
+        data_url: String(reader.result),
+        content_type: file.type,
+        size_kb: Math.max(1, Math.round(file.size / 1024)),
+      });
+    reader.onerror = () => setMediaError('Could not read the selected video. Please try again.');
+    reader.readAsDataURL(file);
   };
 
   const handleAddInventory = (e: React.FormEvent) => {
@@ -286,7 +504,7 @@ export default function PropertyDetailPage() {
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          Documents Folder ({property.documents?.length || 0})
+          Documents Folder ({allDocuments.length})
         </button>
         <button
           onClick={() => setActiveTab('media')}
@@ -296,7 +514,7 @@ export default function PropertyDetailPage() {
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          Photos & Videos ({property.media_photos?.length || 0})
+          Photos & Videos ({allPhotos.length + uploadedVideos.length + (property.media_video ? 1 : 0)})
         </button>
         <button
           onClick={() => setActiveTab('inventory')}
@@ -539,15 +757,15 @@ export default function PropertyDetailPage() {
                     <span className="text-slate-500">Email Address:</span>
                     <span className="text-slate-800">
                       {property.active_tenant_email ||
-                        registeredUsers.find((u) => u.id === property.active_tenant_id)?.email ||
+                        tenantUsers.find((u) => u.id === property.active_tenant_id)?.email ||
                         'tenant@cypress.local'}
                     </span>
                   </div>
-                  {registeredUsers.find((u) => u.id === property.active_tenant_id)?.employment_company && (
+                  {tenantUsers.find((u) => u.id === property.active_tenant_id)?.employment_company && (
                     <div className="flex justify-between">
                       <span className="text-slate-500">Employment / Employer:</span>
                       <span className="font-medium text-slate-800">
-                        {registeredUsers.find((u) => u.id === property.active_tenant_id)?.employment_company}
+                        {tenantUsers.find((u) => u.id === property.active_tenant_id)?.employment_company}
                       </span>
                     </div>
                   )}
@@ -656,18 +874,24 @@ export default function PropertyDetailPage() {
               {/* Registered Tenant Quick-Selector */}
               <div className="space-y-3">
                 <label className="block text-xs font-semibold text-slate-700">
-                  Select from Registered Tenant Users ({registeredUsers.filter((u) => u.role === 'tenant').length})
+                  Select from Registered Tenant Users ({tenantUsers.length})
                 </label>
 
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {registeredUsers
-                    .filter((u) => u.role === 'tenant')
-                    .map((tUser) => {
+                  {tenantUsers.length === 0 && (
+                    <p className="text-[11px] text-slate-500 italic px-1 py-2">
+                      {tenantUsersQuery.isLoading
+                        ? 'Loading tenant users…'
+                        : 'No tenant users found. Register a tenant in Tenants first.'}
+                    </p>
+                  )}
+                  {tenantUsers.map((tUser) => {
                       const isConnected = property.active_tenant_id === tUser.id;
                       return (
                         <div
                           key={tUser.id}
                           onClick={() => {
+                            upsertDirectoryUser(tUser);
                             assignTenantUser(
                               property.id,
                               tUser.id,
@@ -754,7 +978,9 @@ export default function PropertyDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {(property.documents || []).map((doc) => (
+            {allDocuments.map((doc) => {
+              const hasFile = doc.file_url && doc.file_url !== '#';
+              return (
               <Card key={doc.id} className="flex flex-col justify-between p-4 hover:border-cypress-300">
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -772,22 +998,44 @@ export default function PropertyDetailPage() {
 
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                   <span>Uploaded {formatDate(doc.uploaded_at)}</span>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert(`Downloading file: ${doc.name}`);
-                    }}
-                    className="font-semibold text-cypress-700 hover:text-cypress-900 flex items-center gap-1"
-                  >
-                    <Download className="h-3 w-3" /> Download
-                  </a>
+                  <div className="flex items-center gap-2.5">
+                    {hasFile ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openStoredFile(doc.file_url)}
+                          className="font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+                        >
+                          <ImageIcon className="h-3 w-3" /> View
+                        </button>
+                        <a
+                          href={doc.file_url}
+                          download={doc.name}
+                          className="font-semibold text-cypress-700 hover:text-cypress-900 flex items-center gap-1"
+                        >
+                          <Download className="h-3 w-3" /> Download
+                        </a>
+                      </>
+                    ) : (
+                      <span className="text-slate-400 italic">No file attached</span>
+                    )}
+                    {removePropertyDocument && attachments.documents.some((d) => d.id === doc.id) && (
+                      <button
+                        type="button"
+                        onClick={() => removePropertyDocument(property.id, doc.id)}
+                        className="font-semibold text-red-500 hover:text-red-700 flex items-center gap-1"
+                      >
+                        <X className="h-3 w-3" /> Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
 
-          {(property.documents || []).length === 0 && (
+          {allDocuments.length === 0 && (
             <p className="py-12 text-center text-xs text-slate-400">No documents stored in this property folder yet.</p>
           )}
         </div>
@@ -797,28 +1045,112 @@ export default function PropertyDetailPage() {
       {activeTab === 'media' && (
         <div className="space-y-6">
           <div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">Pre-Inspection & Walkthrough Media</h3>
-            <p className="text-xs text-slate-500 mb-4">
-              HD photos and walkthrough video captured during Cypress onboarding inspection.
-            </p>
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 mb-1">Pre-Inspection & Walkthrough Media</h3>
+                <p className="text-xs text-slate-500">
+                  HD photos and walkthrough videos. Upload from your computer to view and download anytime.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-cypress-700 px-3 py-2 text-xs font-bold text-white hover:bg-cypress-800 transition">
+                  <ImageIcon className="h-3.5 w-3.5" /> Upload Photos
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+                </label>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-cypress-200 bg-white px-3 py-2 text-xs font-bold text-cypress-700 hover:bg-cypress-50 transition">
+                  <Video className="h-3.5 w-3.5" /> Upload Video
+                  <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
+                </label>
+              </div>
+            </div>
+
+            {mediaError && (
+              <p className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-800">
+                {mediaError}
+              </p>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-              {(property.media_photos || []).map((photo, i) => (
-                <div key={i} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 aspect-video shadow-sm">
+              {allPhotos.map((photo) => (
+                <div key={photo.id} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 aspect-video shadow-sm">
                   <img
-                    src={photo}
-                    alt={`Property inspection ${i + 1}`}
+                    src={photo.src}
+                    alt={photo.name}
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 text-white text-xs font-semibold">
-                    Inspection Capture #{i + 1}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3 text-white text-xs font-semibold">
+                    <span className="truncate pr-2">{photo.name}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openStoredFile(photo.src)}
+                        title="View"
+                        className="rounded-lg bg-white/20 p-1 hover:bg-white/30"
+                      >
+                        <ImageIcon className="h-3.5 w-3.5" />
+                      </button>
+                      <a
+                        href={photo.src}
+                        download={photo.name}
+                        title="Download"
+                        className="rounded-lg bg-white/20 p-1 hover:bg-white/30"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </a>
+                      {photo.removable && (
+                        <button
+                          type="button"
+                          title="Remove"
+                          onClick={() => removePropertyPhoto(property.id, photo.id)}
+                          className="rounded-lg bg-red-500/80 p-1 hover:bg-red-600"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
+
+            {allPhotos.length === 0 && (
+              <p className="py-10 text-center text-xs text-slate-400">
+                No photos yet. Use “Upload Photos” to add images from your computer.
+              </p>
+            )}
           </div>
 
-          {/* Video Walkthrough Player */}
+          {/* Uploaded Video Walkthroughs */}
+          {uploadedVideos.map((vid) => (
+            <Card key={vid.id}>
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Video className="h-4 w-4 text-cypress-700" />
+                  <h4 className="text-sm font-bold text-slate-900 truncate">{vid.name}</h4>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <a href={vid.data_url} download={vid.name} className="font-semibold text-cypress-700 hover:text-cypress-900 flex items-center gap-1">
+                    <Download className="h-3.5 w-3.5" /> Download
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => removePropertyVideo(property.id, vid.id)}
+                    className="font-semibold text-red-500 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <X className="h-3.5 w-3.5" /> Remove
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-black aspect-video">
+                <video controls className="h-full w-full">
+                  <source src={vid.data_url} type={vid.content_type || 'video/mp4'} />
+                  Your browser does not support HTML5 video.
+                </video>
+              </div>
+            </Card>
+          ))}
+
+          {/* Seed/backend Video Walkthrough Player */}
           {property.media_video && (
             <Card>
               <div className="flex items-center gap-2 mb-3">
@@ -1160,7 +1492,27 @@ export default function PropertyDetailPage() {
 
             <form onSubmit={handleAddDocument} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Document Title</label>
+                <label className="block font-semibold text-slate-700 mb-1">Choose File from Computer</label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setDocFile(f);
+                    setDocError(null);
+                    if (f && !docName.trim()) setDocName(f.name.replace(/\.[^.]+$/, ''));
+                  }}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 file:mr-3 file:rounded-lg file:border-0 file:bg-cypress-50 file:px-3 file:py-1 file:text-cypress-700 file:font-semibold"
+                />
+                {docFile && (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {docFile.name} · {Math.max(1, Math.round(docFile.size / 1024))} KB
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Document Title (save as)</label>
                 <input
                   type="text"
                   required
@@ -1182,6 +1534,7 @@ export default function PropertyDetailPage() {
                   <option value="docx">Word (.docx)</option>
                   <option value="xlsx">Excel (.xlsx)</option>
                 </select>
+                <p className="mt-1 text-[10px] text-slate-400">Auto-detected from the selected file when possible.</p>
               </div>
 
               <div>
@@ -1198,8 +1551,20 @@ export default function PropertyDetailPage() {
                 </select>
               </div>
 
+              {docError && (
+                <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-700">{docError}</p>
+              )}
+
               <div className="pt-2 flex justify-end gap-2">
-                <Button type="button" variant="secondary" onClick={() => setShowDocModal(false)}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowDocModal(false);
+                    setDocFile(null);
+                    setDocError(null);
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button type="submit">Save Document</Button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Building2, Plus, Home, MapPin, ShieldCheck, Sparkles, User, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
@@ -12,9 +12,14 @@ import type { Property } from '@/lib/types';
 
 export default function PropertiesPage() {
   const { user } = useAuth();
-  const { currentRole, properties, renewalAlerts } = useDataStore();
+  const { currentRole, properties, renewalAlerts, loadPropertiesFromApi, propertiesLoading } = useDataStore();
   const [filterOccupancy, setFilterOccupancy] = useState<string>('all');
   const [filterCity, setFilterCity] = useState<string>('all');
+
+  // Properties are sourced from the database on mount.
+  useEffect(() => {
+    loadPropertiesFromApi();
+  }, [loadPropertiesFromApi]);
 
   const isAdmin = currentRole === 'cypress_admin';
   const isOwner = currentRole === 'owner';
@@ -187,8 +192,8 @@ export default function PropertiesPage() {
                     </p>
                   </div>
                   <div className="text-right text-xs text-slate-500">
-                    <span>{p.documents?.length || 2} documents</span>
-                    <p className="text-[10px] text-slate-400">{p.inventory?.length || 4} inventory items</p>
+                    <span>{p.documents?.length ?? 0} documents</span>
+                    <p className="text-[10px] text-slate-400">{p.inventory?.length ?? 0} inventory items</p>
                   </div>
                 </div>
               </Card>
@@ -200,10 +205,19 @@ export default function PropertiesPage() {
       {filteredProperties.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <Building2 className="mx-auto h-12 w-12 text-slate-300" />
-          <h3 className="mt-3 text-base font-bold text-slate-800">No properties found</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Try adjusting your occupancy filter or add a new property.
-          </p>
+          {propertiesLoading ? (
+            <>
+              <h3 className="mt-3 text-base font-bold text-slate-800">Loading properties…</h3>
+              <p className="text-xs text-slate-500 mt-1">Fetching the latest records from the database.</p>
+            </>
+          ) : (
+            <>
+              <h3 className="mt-3 text-base font-bold text-slate-800">No properties found</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Try adjusting your occupancy filter or add a new property.
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>
