@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Download, FileText, Plus, Printer, Receipt, ShieldCheck, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Download, FileText, Plus, Printer, Receipt, ShieldCheck, Sparkles, CheckCircle2, XCircle, Clock, Eye } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { useDataStore } from '@/lib/data-store';
 import { Button } from '@/components/ui/button';
@@ -9,17 +9,79 @@ import { Card } from '@/components/ui/card';
 import { formatINR, formatDate } from '@/lib/utils';
 import { RentReceiptGenerator } from '@/components/rent-receipt-generator';
 import type { RentReceipt } from '@/lib/types';
+import type { RentPayment } from '@/lib/payment';
+
+// openReceipt opens an uploaded receipt (stored as a base64 data URL) in a new
+// tab. Browsers block navigating to data: URLs, so convert to a Blob URL first.
+function openReceipt(dataUrl?: string) {
+  if (!dataUrl) return;
+  try {
+    const [meta, base64] = dataUrl.split(',');
+    const contentType = meta.match(/data:(.*?);base64/)?.[1] ?? 'application/octet-stream';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: contentType }));
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch {
+    /* ignore malformed data URL */
+  }
+}
 
 export default function InvoicesPage() {
   const { user } = useAuth();
-  const { currentRole, receipts, rentHistory, properties } = useDataStore();
-  const [activeTab, setActiveTab] = useState<'receipts' | 'ledger' | 'maintenance'>('receipts');
+  const {
+    currentRole,
+    receipts,
+    rentHistory,
+    properties,
+    rentPayments,
+    loadRentPayments,
+    updateRentPaymentStatus,
+  } = useDataStore();
+  const [activeTab, setActiveTab] = useState<'receipts' | 'payments' | 'ledger' | 'maintenance'>('receipts');
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [viewReceipt, setViewReceipt] = useState<RentReceipt | null>(null);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const isAdmin = currentRole === 'cypress_admin';
   const isOwner = currentRole === 'owner';
   const isTenant = currentRole === 'tenant';
+
+  // Rent payments are stored durably in IndexedDB; hydrate them on mount.
+  useEffect(() => {
+    loadRentPayments();
+  }, [loadRentPayments]);
+
+  // Payments visible to the current user: admin sees all; owner sees payments
+  // for properties they own; tenant sees their own submissions.
+  const ownedPropertyIds = new Set(
+    properties
+      .filter(
+        (p) =>
+          p.owner_id === user?.id ||
+          (user?.full_name && p.owner_name?.toLowerCase().includes(user.full_name.toLowerCase())),
+      )
+      .map((p) => p.id),
+  );
+  const visiblePayments = rentPayments.filter((p) => {
+    if (isAdmin) return true;
+    if (isTenant) return p.tenant_id === user?.id;
+    if (isOwner) return ownedPropertyIds.has(p.property_id);
+    return false;
+  });
+  const pendingCount = visiblePayments.filter((p) => p.status === 'awaiting_verification').length;
+
+  const handleDecision = async (payment: RentPayment, status: RentPayment['status']) => {
+    setPendingAction(payment.id);
+    try {
+      await updateRentPaymentStatus(payment.id, status);
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
   // Filter based on authenticated user
   const visibleReceipts = receipts.filter((r) => {
@@ -79,6 +141,21 @@ export default function InvoicesPage() {
           }`}
         >
           Rent Receipts ({visibleReceipts.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('payments')}
+          className={`relative pb-3 border-b-2 transition-colors ${
+            activeTab === 'payments'
+              ? 'border-cypress-600 text-cypress-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          {isAdmin ? 'Payment Approvals' : 'My Payments'} ({visiblePayments.length})
+          {pendingCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              {pendingCount}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('ledger')}
@@ -158,6 +235,128 @@ export default function InvoicesPage() {
           </div>
           {visibleReceipts.length === 0 && (
             <p className="px-4 py-10 text-center text-slate-400">No rent receipts generated yet.</p>
+          )}
+        </Card>
+      )}
+
+      {/* Tab: Rent Payment Approvals (offline payments submitted by tenants) */}
+      {activeTab === 'payments' && (
+        <Card className="overflow-hidden p-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 p-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                {isAdmin ? 'Tenant Rent Payment Approvals' : 'My Submitted Rent Payments'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {isAdmin
+                  ? 'Verify each offline payment against the Cypress bank statement, then approve or reject.'
+                  : 'Track the verification status of the payments you submitted.'}
+              </p>
+            </div>
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                <Clock className="h-3.5 w-3.5" /> {pendingCount} awaiting verification
+              </span>
+            )}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-200 bg-white text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Property / UPID</th>
+                  <th className="px-4 py-3">Tenant</th>
+                  <th className="px-4 py-3">Period</th>
+                  <th className="px-4 py-3">Method</th>
+                  <th className="px-4 py-3">Reference</th>
+                  <th className="px-4 py-3">Paid On</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-center">Receipt</th>
+                  <th className="px-4 py-3 text-center">Status</th>
+                  {isAdmin && <th className="px-4 py-3 text-center">Action</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visiblePayments.map((p) => {
+                  const badge =
+                    p.status === 'verified'
+                      ? { cls: 'bg-emerald-100 text-emerald-800', Icon: CheckCircle2, label: 'Approved' }
+                      : p.status === 'rejected'
+                        ? { cls: 'bg-red-100 text-red-700', Icon: XCircle, label: 'Rejected' }
+                        : { cls: 'bg-amber-100 text-amber-800', Icon: Clock, label: 'Awaiting verification' };
+                  const busy = pendingAction === p.id;
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <div className="font-mono text-xs font-bold text-cypress-700">{p.property_upid}</div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{p.tenant_name}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{p.period}</td>
+                      <td className="px-4 py-3 text-xs capitalize text-slate-600">{p.method.replace(/_/g, ' ')}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-600">{p.reference || '—'}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500">{formatDate(p.payment_date)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-cypress-800">{formatINR(p.amount)}</td>
+                      <td className="px-4 py-3 text-center">
+                        {p.receipt_data_url ? (
+                          <button
+                            onClick={() => openReceipt(p.receipt_data_url)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-cypress-400 hover:bg-cypress-50"
+                          >
+                            <Eye className="h-3 w-3 text-cypress-600" /> View
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${badge.cls}`}
+                        >
+                          <badge.Icon className="h-3 w-3" /> {badge.label}
+                        </span>
+                      </td>
+                      {isAdmin && (
+                        <td className="px-4 py-3">
+                          {p.status === 'awaiting_verification' ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                disabled={busy}
+                                onClick={() => handleDecision(p, 'verified')}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                              >
+                                <CheckCircle2 className="h-3 w-3" /> Approve
+                              </button>
+                              <button
+                                disabled={busy}
+                                onClick={() => handleDecision(p, 'rejected')}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                              >
+                                <XCircle className="h-3 w-3" /> Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <button
+                                disabled={busy}
+                                onClick={() => handleDecision(p, 'awaiting_verification')}
+                                className="text-xs font-semibold text-slate-400 hover:text-slate-600 disabled:opacity-60"
+                              >
+                                Reset
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {visiblePayments.length === 0 && (
+            <p className="px-4 py-10 text-center text-slate-400">
+              {isAdmin ? 'No tenant payments submitted yet.' : 'You have not submitted any rent payments yet.'}
+            </p>
           )}
         </Card>
       )}
