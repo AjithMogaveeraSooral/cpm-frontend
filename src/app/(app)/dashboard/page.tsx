@@ -30,6 +30,25 @@ import { formatINR, formatDate } from '@/lib/utils';
 import { PayRentModal } from '@/components/pay-rent-modal';
 import { rentDueInfo, currentPeriodLabel } from '@/lib/payment';
 
+// openReceipt opens an uploaded receipt (base64 data URL) in a new tab. Browsers
+// block navigating directly to data: URLs, so convert to a Blob URL first.
+function openReceipt(dataUrl?: string) {
+  if (!dataUrl) return;
+  try {
+    const [meta, base64] = dataUrl.split(',');
+    const contentType = meta.match(/data:(.*?);base64/)?.[1] ?? 'application/octet-stream';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: contentType }));
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch {
+    /* ignore malformed data URL */
+  }
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const {
@@ -42,8 +61,10 @@ export default function DashboardPage() {
     loadPropertiesFromApi,
     rentPayments,
     loadRentPayments,
+    updateRentPaymentStatus,
   } = useDataStore();
   const [payRentOpen, setPayRentOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   // Resolve the effective role from the account's actual roles, falling back to
   // the persisted portal selection. This guarantees tenant content (incl. Pay
@@ -107,6 +128,22 @@ export default function DashboardPage() {
   const vacantCount = properties.filter((p) => p.occupancy_status === 'vacant').length;
   const openTickets = tickets.filter((t) => t.status !== 'closed');
   const activeAlert = renewalAlerts[0];
+
+  // Tenant rent payments awaiting the Cypress admin's approval (newest first).
+  const adminPendingPayments = isAdmin
+    ? rentPayments
+        .filter((p) => p.status === 'awaiting_verification')
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+    : [];
+
+  const handleDecision = async (paymentId: string, status: 'verified' | 'rejected') => {
+    setPendingAction(paymentId);
+    try {
+      await updateRentPaymentStatus(paymentId, status);
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
   return (
     <div>
@@ -201,6 +238,87 @@ export default function DashboardPage() {
             />
           </StaggerItem>
         </Stagger>
+      )}
+
+      {/* ADMIN: Pending rent payment approvals (tenant offline "Pay Rent" submissions) */}
+      {isAdmin && (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <IndianRupee className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Rent Payment Approvals</h3>
+                <p className="text-xs text-slate-500">
+                  {adminPendingPayments.length > 0
+                    ? `${adminPendingPayments.length} tenant payment${adminPendingPayments.length > 1 ? 's' : ''} awaiting your verification`
+                    : 'All tenant payments have been reviewed'}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/invoices"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:border-cypress-400 hover:bg-cypress-50"
+            >
+              View all payments <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {adminPendingPayments.length === 0 ? (
+            <div className="flex items-center gap-2 px-5 py-8 text-sm text-slate-400">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              No rent payments pending approval right now.
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {adminPendingPayments.slice(0, 6).map((p) => {
+                const busy = pendingAction === p.id;
+                return (
+                  <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900">{p.tenant_name || 'Tenant'}</span>
+                        <span className="font-mono text-[11px] font-bold text-cypress-700">{p.property_upid}</span>
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                        <span className="font-bold text-cypress-800">{formatINR(p.amount)}</span>
+                        <span>{p.period}</span>
+                        <span className="capitalize">{p.method.replace(/_/g, ' ')}</span>
+                        {p.payment_date && <span>Paid {formatDate(p.payment_date)}</span>}
+                        {p.reference && <span className="font-mono">Ref {p.reference}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {p.receipt_data_url && (
+                        <button
+                          onClick={() => openReceipt(p.receipt_data_url)}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-cypress-400 hover:bg-cypress-50"
+                        >
+                          Receipt
+                        </button>
+                      )}
+                      <button
+                        disabled={busy}
+                        onClick={() => handleDecision(p.id, 'verified')}
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                      </button>
+                      <button
+                        disabled={busy}
+                        onClick={() => handleDecision(p.id, 'rejected')}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                      >
+                        <XCircle className="h-3.5 w-3.5" /> Reject
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       )}
 
       {/* OWNER STATS */}

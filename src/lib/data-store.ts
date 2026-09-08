@@ -173,7 +173,55 @@ function mapApiProperty(p: ApiProperty): Property {
   };
 }
 
-// overlayAssignments re-applies persisted owner/tenant connection snapshots onto
+// ApiRentPayment mirrors the backend TenantRentPayment JSON. Optional fields are
+// nullable/absent when unset.
+interface ApiRentPayment {
+  id: string;
+  property_id: string;
+  property_upid?: string;
+  tenant_id: string;
+  tenant_name?: string;
+  period: string;
+  amount: number;
+  method: string;
+  reference?: string | null;
+  payment_date?: string;
+  status: RentPayment['status'];
+  notes?: string | null;
+  receipt_name?: string | null;
+  receipt_data_url?: string | null;
+  receipt_content_type?: string | null;
+  receipt_size_kb?: number | null;
+  paid_to?: RentPayment['paid_to'] | null;
+  created_at: string;
+}
+
+// mapApiRentPayment converts a backend payment record into the UI RentPayment
+// shape, coercing SQL NULLs to undefined.
+function mapApiRentPayment(p: ApiRentPayment): RentPayment {
+  return {
+    id: p.id,
+    property_id: p.property_id,
+    property_upid: p.property_upid ?? '',
+    tenant_id: p.tenant_id,
+    tenant_name: p.tenant_name ?? '',
+    period: p.period,
+    amount: p.amount,
+    method: p.method as RentPayment['method'],
+    reference: p.reference ?? undefined,
+    payment_date: p.payment_date ?? '',
+    status: p.status,
+    notes: p.notes ?? undefined,
+    receipt_name: p.receipt_name ?? undefined,
+    receipt_data_url: p.receipt_data_url ?? undefined,
+    receipt_content_type: p.receipt_content_type ?? undefined,
+    receipt_size_kb: p.receipt_size_kb ?? undefined,
+    paid_to: p.paid_to ?? undefined,
+    created_at: p.created_at,
+  };
+}
+
+
 // a freshly loaded property list. Owner/tenant assignments are managed on the
 // client and are NOT part of the backend /properties payload, so without this
 // merge a connection would disappear on every page refresh (which reloads
@@ -831,35 +879,83 @@ export const useDataStore = create<DataStoreState>()(
       },
 
       loadRentPayments: async () => {
-        if (get().rentPaymentsLoaded) return;
-        const stored = await idbLoadRentPayments();
-        // Merge stored payments with any submitted earlier this session.
+        // Source of truth is the backend so an admin on any device sees tenant
+        // submissions. IndexedDB is a local cache/offline fallback.
         const byId = new Map<string, RentPayment>();
-        [...stored, ...get().rentPayments].forEach((p) => byId.set(p.id, p));
+        try {
+          const res = await api.get<ApiRentPayment[]>('/rent/payments', {
+            query: { page: 1, page_size: 200 },
+          });
+          (res.data ?? []).map(mapApiRentPayment).forEach((p) => byId.set(p.id, p));
+          // Cache backend records locally for offline viewing.
+          for (const p of byId.values()) idbSaveRentPayment(p).catch(() => {});
+        } catch {
+          // Backend unreachable: fall back to whatever is cached locally.
+          const stored = await idbLoadRentPayments();
+          stored.forEach((p) => byId.set(p.id, p));
+        }
+        // Merge any records still only present locally (e.g. offline submissions).
+        [...get().rentPayments].forEach((p) => {
+          if (!byId.has(p.id)) byId.set(p.id, p);
+        });
         const merged = Array.from(byId.values()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
         set({ rentPayments: merged, rentPaymentsLoaded: true });
       },
 
       submitRentPayment: async (input) => {
-        const payment: RentPayment = {
-          ...input,
-          id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          status: 'awaiting_verification',
-          created_at: new Date().toISOString(),
-        };
-        // Persist durably first so a large receipt that exceeds quota surfaces an
-        // error before we report success to the tenant.
-        await idbSaveRentPayment(payment);
-        set({ rentPayments: [payment, ...get().rentPayments] });
-        return payment;
+        try {
+          // Persist server-side so the Cypress admin can approve it from any
+          // device. The backend derives tenant_id from the auth token.
+          const res = await api.post<ApiRentPayment>('/rent/payments', {
+            property_id: input.property_id,
+            property_upid: input.property_upid,
+            tenant_name: input.tenant_name,
+            period: input.period,
+            amount: input.amount,
+            method: input.method,
+            reference: input.reference,
+            payment_date: input.payment_date,
+            notes: input.notes,
+            receipt_name: input.receipt_name,
+            receipt_data_url: input.receipt_data_url,
+            receipt_content_type: input.receipt_content_type,
+            receipt_size_kb: input.receipt_size_kb,
+            paid_to: input.paid_to,
+          });
+          const payment = mapApiRentPayment(res.data);
+          await idbSaveRentPayment(payment).catch(() => {});
+          set({ rentPayments: [payment, ...get().rentPayments] });
+          return payment;
+        } catch {
+          // Offline / backend down: record locally so the tenant isn't blocked.
+          // It will remain visible on this device until connectivity returns.
+          const payment: RentPayment = {
+            ...input,
+            id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            status: 'awaiting_verification',
+            created_at: new Date().toISOString(),
+          };
+          await idbSaveRentPayment(payment);
+          set({ rentPayments: [payment, ...get().rentPayments] });
+          return payment;
+        }
       },
 
       updateRentPaymentStatus: async (paymentId, status) => {
         const existing = get().rentPayments.find((p) => p.id === paymentId);
         if (!existing) return;
-        const updated = { ...existing, status };
-        await idbSaveRentPayment(updated);
-        set({ rentPayments: get().rentPayments.map((p) => (p.id === paymentId ? updated : p)) });
+        // Approve/reject on the backend so the decision is shared across devices.
+        try {
+          const res = await api.post<ApiRentPayment>(`/rent/payments/${paymentId}/decision`, { status });
+          const updated = mapApiRentPayment(res.data);
+          await idbSaveRentPayment(updated).catch(() => {});
+          set({ rentPayments: get().rentPayments.map((p) => (p.id === paymentId ? updated : p)) });
+        } catch {
+          // Fallback: update locally (works for locally-only records / offline).
+          const updated = { ...existing, status };
+          await idbSaveRentPayment(updated).catch(() => {});
+          set({ rentPayments: get().rentPayments.map((p) => (p.id === paymentId ? updated : p)) });
+        }
       },
 
       addInventoryItem: (propertyId, item) => {
