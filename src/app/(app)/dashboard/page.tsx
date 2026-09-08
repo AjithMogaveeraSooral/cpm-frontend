@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -18,17 +19,40 @@ import {
   KeyRound,
   UserCheck,
 } from 'lucide-react';
+import { useAuth } from '@/lib/auth-store';
 import { useDataStore } from '@/lib/data-store';
 import { StatCard } from '@/components/ui/card';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { formatINR } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const { currentRole, properties, tickets, leads, receipts, renewalAlerts } = useDataStore();
+  const { user } = useAuth();
+  const { currentRole, properties, tickets, leads, receipts, renewalAlerts, loadPropertiesFromApi } = useDataStore();
 
   const isAdmin = currentRole === 'cypress_admin';
   const isOwner = currentRole === 'owner';
   const isTenant = currentRole === 'tenant';
+
+  // Properties are sourced from the database on mount so the dashboard reflects
+  // the tenant's actual connected property (not stale/persisted data).
+  useEffect(() => {
+    loadPropertiesFromApi();
+  }, [loadPropertiesFromApi]);
+
+  // Resolve the property the logged-in tenant is connected to.
+  const tenantProperty = isTenant
+    ? properties.find(
+        (p) =>
+          p.active_tenant_id === user?.id ||
+          (user?.mobile && p.active_tenant_phone?.includes(user.mobile)) ||
+          (user?.full_name && p.active_tenant_name?.toLowerCase().includes(user.full_name.toLowerCase())),
+      )
+    : undefined;
+
+  const tenantPropertyLabel = tenantProperty
+    ? [tenantProperty.flat_no, tenantProperty.apartment_name].filter(Boolean).join(', ') ||
+      tenantProperty.upid
+    : undefined;
 
   const occupiedCount = properties.filter((p) => p.occupancy_status === 'occupied').length;
   const vacantCount = properties.filter((p) => p.occupancy_status === 'vacant').length;
@@ -178,8 +202,8 @@ export default function DashboardPage() {
           <StaggerItem>
             <StatCard
               label="My Rented Home"
-              value={1}
-              hint="Flat A-804, Prestige Falcon City"
+              value={tenantProperty ? 1 : 0}
+              hint={tenantPropertyLabel || 'No property connected yet'}
               icon={Home}
               accent="cypress"
             />
@@ -187,8 +211,10 @@ export default function DashboardPage() {
           <StaggerItem>
             <StatCard
               label="Monthly Rent"
-              value={42000}
-              hint="Next due: 5th October 2026"
+              value={tenantProperty ? formatINR(tenantProperty.monthly_rent) : '—'}
+              hint={tenantProperty?.lease_end_date
+                ? `Lease ends ${new Date(tenantProperty.lease_end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                : 'No active lease'}
               icon={Receipt}
               accent="sky"
             />

@@ -21,6 +21,7 @@ import type {
 } from './types';
 import { useAuth } from './auth-store';
 import { api } from './api-client';
+import { idbLoadAllAttachments, idbSaveAttachment } from './media-idb';
 
 export const CITIES_MASTER: CityOption[] = [
   {
@@ -170,6 +171,46 @@ function mapApiProperty(p: ApiProperty): Property {
   };
 }
 
+// overlayAssignments re-applies persisted owner/tenant connection snapshots onto
+// a freshly loaded property list. Owner/tenant assignments are managed on the
+// client and are NOT part of the backend /properties payload, so without this
+// merge a connection would disappear on every page refresh (which reloads
+// properties from the API). It also injects any assigned property the API did
+// not return — e.g. a tenant whose backend listing is owner-scoped and therefore
+// excludes their rented unit.
+function overlayAssignments(
+  list: Property[],
+  assignments: Record<string, Property>,
+): Property[] {
+  const applied = list.map((p) => {
+    const snap = assignments[p.id];
+    if (!snap) return p;
+    return {
+      ...p,
+      owner_id: snap.owner_id ?? p.owner_id,
+      owner_name: snap.owner_name ?? p.owner_name,
+      owner_phone: snap.owner_phone ?? p.owner_phone,
+      owner_email: snap.owner_email ?? p.owner_email,
+      owner_pan: snap.owner_pan ?? p.owner_pan,
+      // Tenant fields are applied verbatim so that ending a tenancy (snapshot
+      // with cleared tenant fields) also survives a refresh.
+      active_tenant_id: snap.active_tenant_id,
+      active_tenant_name: snap.active_tenant_name,
+      active_tenant_phone: snap.active_tenant_phone,
+      active_tenant_email: snap.active_tenant_email,
+      monthly_rent: snap.monthly_rent ?? p.monthly_rent,
+      deposit: snap.deposit ?? p.deposit,
+      lease_start_date: snap.lease_start_date,
+      lease_end_date: snap.lease_end_date,
+      occupancy_status: snap.occupancy_status ?? p.occupancy_status,
+      is_listed: snap.is_listed ?? p.is_listed,
+    };
+  });
+  const presentIds = new Set(list.map((p) => p.id));
+  const injected = Object.values(assignments).filter((s) => !presentIds.has(s.id));
+  return [...applied, ...injected];
+}
+
 // StoredMediaAsset is a user-uploaded photo/video kept locally as a base64 data
 // URL so it can be previewed and downloaded without a storage backend.
 export interface StoredMediaAsset {
@@ -182,8 +223,9 @@ export interface StoredMediaAsset {
 }
 
 // PropertyAttachmentBucket holds the documents, photos and videos a user has
-// uploaded for a single property (client-side, persisted).
-interface PropertyAttachmentBucket {
+// uploaded for a single property. These are stored durably in IndexedDB (see
+// media-idb.ts) rather than localStorage, whose small quota cannot hold videos.
+export interface PropertyAttachmentBucket {
   documents: PropertyDocument[];
   photos: StoredMediaAsset[];
   videos: StoredMediaAsset[];
@@ -202,6 +244,10 @@ interface DataStoreState {
   renewalAlerts: RenewalAlert[];
   registeredUsers: DirectoryUser[];
   propertyAttachments: Record<string, PropertyAttachmentBucket>;
+  attachmentsLoaded: boolean;
+  // Persisted owner/tenant connection snapshots keyed by property id. These
+  // survive a refresh and are re-applied to the backend-loaded property list.
+  assignedProperties: Record<string, Property>;
   propertiesLoading: boolean;
   propertiesLoaded: boolean;
 
@@ -239,12 +285,13 @@ interface DataStoreState {
   addInventoryItem: (propertyId: string, item: Omit<PropertyInventoryItem, 'id' | 'property_id'>) => void;
   updateInventoryCondition: (propertyId: string, itemId: string, condition: 'good' | 'fair' | 'needs_repair') => void;
 
-  // Property attachments (user-uploaded files, stored locally as data URLs)
-  addPropertyDocument: (propertyId: string, doc: Omit<PropertyDocument, 'id' | 'property_id' | 'uploaded_at'>) => void;
+  // Property attachments (user-uploaded files, stored durably in IndexedDB)
+  loadAttachments: () => Promise<void>;
+  addPropertyDocument: (propertyId: string, doc: Omit<PropertyDocument, 'id' | 'property_id' | 'uploaded_at'>) => Promise<void>;
   removePropertyDocument: (propertyId: string, docId: string) => void;
-  addPropertyPhotos: (propertyId: string, assets: Omit<StoredMediaAsset, 'id' | 'uploaded_at'>[]) => void;
+  addPropertyPhotos: (propertyId: string, assets: Omit<StoredMediaAsset, 'id' | 'uploaded_at'>[]) => Promise<void>;
   removePropertyPhoto: (propertyId: string, id: string) => void;
-  addPropertyVideo: (propertyId: string, asset: Omit<StoredMediaAsset, 'id' | 'uploaded_at'>) => void;
+  addPropertyVideo: (propertyId: string, asset: Omit<StoredMediaAsset, 'id' | 'uploaded_at'>) => Promise<void>;
   removePropertyVideo: (propertyId: string, id: string) => void;
 
   // Association maintenance & move charges
@@ -311,6 +358,8 @@ export const useDataStore = create<DataStoreState>()(
       renewalAlerts: calculateRenewalAlerts(INITIAL_PROPERTIES),
       registeredUsers: INITIAL_DIRECTORY_USERS,
       propertyAttachments: {},
+      attachmentsLoaded: false,
+      assignedProperties: {},
       propertiesLoading: false,
       propertiesLoaded: false,
 
@@ -327,9 +376,10 @@ export const useDataStore = create<DataStoreState>()(
             query: { page: 1, page_size: 100 },
           });
           const mapped = (res.data ?? []).map(mapApiProperty);
+          const merged = overlayAssignments(mapped, get().assignedProperties);
           set({
-            properties: mapped,
-            renewalAlerts: calculateRenewalAlerts(mapped),
+            properties: merged,
+            renewalAlerts: calculateRenewalAlerts(merged),
             propertiesLoaded: true,
           });
         } catch {
@@ -348,7 +398,8 @@ export const useDataStore = create<DataStoreState>()(
           const existing = get().properties.find((p) => p.id === mapped.id);
           // Preserve any locally-held enrichment (owner/tenant display, docs)
           // that the backend property payload does not carry.
-          const merged = existing ? { ...existing, ...mapped } : mapped;
+          const base = existing ? { ...existing, ...mapped } : mapped;
+          const [merged] = overlayAssignments([base], get().assignedProperties);
           const others = get().properties.filter((p) => p.id !== mapped.id);
           const next = [merged, ...others];
           set({ properties: next, renewalAlerts: calculateRenewalAlerts(next) });
@@ -529,7 +580,13 @@ export const useDataStore = create<DataStoreState>()(
             owner_pan: owner.pan || p.owner_pan,
           };
         });
-        set({ properties: props });
+        const updated = props.find((p) => p.id === propertyId);
+        set({
+          properties: props,
+          assignedProperties: updated
+            ? { ...get().assignedProperties, [propertyId]: updated }
+            : get().assignedProperties,
+        });
       },
 
       assignTenantUser: (propertyId, tenantUserId, rent, deposit, startDate, endDate) => {
@@ -567,7 +624,14 @@ export const useDataStore = create<DataStoreState>()(
             ],
           };
         });
-        set({ properties: props, renewalAlerts: calculateRenewalAlerts(props) });
+        const updated = props.find((p) => p.id === propertyId);
+        set({
+          properties: props,
+          renewalAlerts: calculateRenewalAlerts(props),
+          assignedProperties: updated
+            ? { ...get().assignedProperties, [propertyId]: updated }
+            : get().assignedProperties,
+        });
       },
 
       endTenancy: (propertyId) => {
@@ -585,7 +649,14 @@ export const useDataStore = create<DataStoreState>()(
             is_listed: true, // Re-listed for rent
           };
         });
-        set({ properties: props, renewalAlerts: calculateRenewalAlerts(props) });
+        const updated = props.find((p) => p.id === propertyId);
+        set({
+          properties: props,
+          renewalAlerts: calculateRenewalAlerts(props),
+          assignedProperties: updated
+            ? { ...get().assignedProperties, [propertyId]: updated }
+            : get().assignedProperties,
+        });
       },
 
       registerDirectoryUser: (user) => {
@@ -665,7 +736,18 @@ export const useDataStore = create<DataStoreState>()(
         set({ properties: props });
       },
 
-      addPropertyDocument: (propertyId, doc) => {
+      loadAttachments: async () => {
+        if (get().attachmentsLoaded) return;
+        const stored = await idbLoadAllAttachments();
+        // Merge stored buckets in, letting any in-memory buckets (added earlier
+        // this session) take precedence.
+        set({
+          propertyAttachments: { ...stored, ...get().propertyAttachments },
+          attachmentsLoaded: true,
+        });
+      },
+
+      addPropertyDocument: async (propertyId, doc) => {
         const newDoc: PropertyDocument = {
           ...doc,
           id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -674,27 +756,21 @@ export const useDataStore = create<DataStoreState>()(
         };
         const buckets = get().propertyAttachments;
         const bucket = buckets[propertyId] || { documents: [], photos: [], videos: [] };
-        set({
-          propertyAttachments: {
-            ...buckets,
-            [propertyId]: { ...bucket, documents: [...bucket.documents, newDoc] },
-          },
-        });
+        const nextBucket = { ...bucket, documents: [...bucket.documents, newDoc] };
+        set({ propertyAttachments: { ...buckets, [propertyId]: nextBucket } });
+        await idbSaveAttachment(propertyId, nextBucket);
       },
 
       removePropertyDocument: (propertyId, docId) => {
         const buckets = get().propertyAttachments;
         const bucket = buckets[propertyId];
         if (!bucket) return;
-        set({
-          propertyAttachments: {
-            ...buckets,
-            [propertyId]: { ...bucket, documents: bucket.documents.filter((d) => d.id !== docId) },
-          },
-        });
+        const nextBucket = { ...bucket, documents: bucket.documents.filter((d) => d.id !== docId) };
+        set({ propertyAttachments: { ...buckets, [propertyId]: nextBucket } });
+        idbSaveAttachment(propertyId, nextBucket).catch((e) => console.error('persist attachments', e));
       },
 
-      addPropertyPhotos: (propertyId, assets) => {
+      addPropertyPhotos: async (propertyId, assets) => {
         const buckets = get().propertyAttachments;
         const bucket = buckets[propertyId] || { documents: [], photos: [], videos: [] };
         const now = new Date().toISOString();
@@ -703,27 +779,21 @@ export const useDataStore = create<DataStoreState>()(
           id: `photo-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
           uploaded_at: now,
         }));
-        set({
-          propertyAttachments: {
-            ...buckets,
-            [propertyId]: { ...bucket, photos: [...bucket.photos, ...newAssets] },
-          },
-        });
+        const nextBucket = { ...bucket, photos: [...bucket.photos, ...newAssets] };
+        set({ propertyAttachments: { ...buckets, [propertyId]: nextBucket } });
+        await idbSaveAttachment(propertyId, nextBucket);
       },
 
       removePropertyPhoto: (propertyId, id) => {
         const buckets = get().propertyAttachments;
         const bucket = buckets[propertyId];
         if (!bucket) return;
-        set({
-          propertyAttachments: {
-            ...buckets,
-            [propertyId]: { ...bucket, photos: bucket.photos.filter((p) => p.id !== id) },
-          },
-        });
+        const nextBucket = { ...bucket, photos: bucket.photos.filter((p) => p.id !== id) };
+        set({ propertyAttachments: { ...buckets, [propertyId]: nextBucket } });
+        idbSaveAttachment(propertyId, nextBucket).catch((e) => console.error('persist attachments', e));
       },
 
-      addPropertyVideo: (propertyId, asset) => {
+      addPropertyVideo: async (propertyId, asset) => {
         const buckets = get().propertyAttachments;
         const bucket = buckets[propertyId] || { documents: [], photos: [], videos: [] };
         const newAsset: StoredMediaAsset = {
@@ -731,24 +801,20 @@ export const useDataStore = create<DataStoreState>()(
           id: `video-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           uploaded_at: new Date().toISOString(),
         };
-        set({
-          propertyAttachments: {
-            ...buckets,
-            [propertyId]: { ...bucket, videos: [...bucket.videos, newAsset] },
-          },
-        });
+        const nextBucket = { ...bucket, videos: [...bucket.videos, newAsset] };
+        set({ propertyAttachments: { ...buckets, [propertyId]: nextBucket } });
+        // Await the durable write so callers can surface quota/save failures and
+        // only report success once the video is actually saved.
+        await idbSaveAttachment(propertyId, nextBucket);
       },
 
       removePropertyVideo: (propertyId, id) => {
         const buckets = get().propertyAttachments;
         const bucket = buckets[propertyId];
         if (!bucket) return;
-        set({
-          propertyAttachments: {
-            ...buckets,
-            [propertyId]: { ...bucket, videos: bucket.videos.filter((v) => v.id !== id) },
-          },
-        });
+        const nextBucket = { ...bucket, videos: bucket.videos.filter((v) => v.id !== id) };
+        set({ propertyAttachments: { ...buckets, [propertyId]: nextBucket } });
+        idbSaveAttachment(propertyId, nextBucket).catch((e) => console.error('persist attachments', e));
       },
 
       addInventoryItem: (propertyId, item) => {
@@ -1015,7 +1081,8 @@ export const useDataStore = create<DataStoreState>()(
       name: 'cpm-data-store-v3',
       // Properties, the user directory, and derived alerts are sourced from the
       // backend database on each load — never persist them, so stale cached
-      // records can't leak into the UI.
+      // records can't leak into the UI. Attachments live in IndexedDB (media-idb)
+      // because their base64 media payloads exceed the localStorage quota.
       partialize: (state) => {
         const {
           properties: _properties,
@@ -1023,6 +1090,8 @@ export const useDataStore = create<DataStoreState>()(
           renewalAlerts: _renewalAlerts,
           propertiesLoading: _propertiesLoading,
           propertiesLoaded: _propertiesLoaded,
+          propertyAttachments: _propertyAttachments,
+          attachmentsLoaded: _attachmentsLoaded,
           ...rest
         } = state;
         return rest;

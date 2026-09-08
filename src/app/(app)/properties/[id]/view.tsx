@@ -119,6 +119,7 @@ export default function PropertyDetailPage() {
     loadPropertyFromApi,
     upsertDirectoryUser,
     propertyAttachments,
+    loadAttachments,
     addPropertyDocument,
     removePropertyDocument,
     addPropertyPhotos,
@@ -141,6 +142,12 @@ export default function PropertyDetailPage() {
       active = false;
     };
   }, [params.id, loadPropertyFromApi]);
+
+  // User-uploaded documents/photos/videos are stored durably in IndexedDB;
+  // hydrate them into the store on mount so they survive refreshes.
+  useEffect(() => {
+    loadAttachments();
+  }, [loadAttachments]);
 
   // Tenant directory is sourced from the database (GET /auth/users?role=tenant),
   // merged with any locally-registered tenants.
@@ -196,6 +203,9 @@ export default function PropertyDetailPage() {
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  // Video upload progress: null = idle, 0-100 = reading, 'saving' = writing to
+  // durable storage. Surfaced as a progress bar for large/slow uploads.
+  const [videoUpload, setVideoUpload] = useState<{ name: string; percent: number; saving: boolean } | null>(null);
 
   // Add Inventory Item Modal
   const [showInvModal, setShowInvModal] = useState(false);
@@ -348,20 +358,39 @@ export default function PropertyDetailPage() {
       setMediaError(`"${file.name}" is not a video.`);
       return;
     }
-    const MAX_VIDEO_MB = 25;
+    const MAX_VIDEO_MB = 200;
     if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
       setMediaError(`"${file.name}" exceeds the ${MAX_VIDEO_MB}MB limit.`);
       return;
     }
+    setVideoUpload({ name: file.name, percent: 0, saving: false });
     const reader = new FileReader();
-    reader.onload = () =>
-      addPropertyVideo(property.id, {
-        name: file.name,
-        data_url: String(reader.result),
-        content_type: file.type,
-        size_kb: Math.max(1, Math.round(file.size / 1024)),
-      });
-    reader.onerror = () => setMediaError('Could not read the selected video. Please try again.');
+    reader.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        const percent = Math.round((ev.loaded / ev.total) * 100);
+        setVideoUpload((prev) => (prev ? { ...prev, percent } : prev));
+      }
+    };
+    reader.onload = async () => {
+      // Reading done; now persist to IndexedDB (can take a moment for big files).
+      setVideoUpload((prev) => (prev ? { ...prev, percent: 100, saving: true } : prev));
+      try {
+        await addPropertyVideo(property.id, {
+          name: file.name,
+          data_url: String(reader.result),
+          content_type: file.type,
+          size_kb: Math.max(1, Math.round(file.size / 1024)),
+        });
+        setVideoUpload(null);
+      } catch {
+        setVideoUpload(null);
+        setMediaError(`Could not save "${file.name}". Your device storage may be full.`);
+      }
+    };
+    reader.onerror = () => {
+      setVideoUpload(null);
+      setMediaError('Could not read the selected video. Please try again.');
+    };
     reader.readAsDataURL(file);
   };
 
@@ -1057,9 +1086,9 @@ export default function PropertyDetailPage() {
                   <ImageIcon className="h-3.5 w-3.5" /> Upload Photos
                   <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
                 </label>
-                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-cypress-200 bg-white px-3 py-2 text-xs font-bold text-cypress-700 hover:bg-cypress-50 transition">
-                  <Video className="h-3.5 w-3.5" /> Upload Video
-                  <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
+                <label className={`inline-flex items-center gap-1.5 rounded-xl border border-cypress-200 bg-white px-3 py-2 text-xs font-bold text-cypress-700 transition ${videoUpload ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-cypress-50'}`}>
+                  <Video className="h-3.5 w-3.5" /> {videoUpload ? 'Uploading…' : 'Upload Video'}
+                  <input type="file" accept="video/*" className="hidden" disabled={!!videoUpload} onChange={handleVideoUpload} />
                 </label>
               </div>
             </div>
@@ -1068,6 +1097,25 @@ export default function PropertyDetailPage() {
               <p className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-800">
                 {mediaError}
               </p>
+            )}
+
+            {videoUpload && (
+              <div className="mb-3 rounded-lg border border-cypress-200 bg-cypress-50 px-3 py-2.5">
+                <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold text-cypress-800">
+                  <span className="truncate pr-2">
+                    {videoUpload.saving ? 'Saving' : 'Uploading'} “{videoUpload.name}”
+                  </span>
+                  <span className="shrink-0 tabular-nums">
+                    {videoUpload.saving ? 'Saving…' : `${videoUpload.percent}%`}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-cypress-100">
+                  <div
+                    className={`h-full rounded-full bg-cypress-600 transition-all duration-200 ${videoUpload.saving ? 'animate-pulse' : ''}`}
+                    style={{ width: `${videoUpload.percent}%` }}
+                  />
+                </div>
+              </div>
             )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
