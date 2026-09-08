@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -18,26 +18,61 @@ import {
   Calendar,
   KeyRound,
   UserCheck,
+  IndianRupee,
+  Clock,
+  XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { useDataStore } from '@/lib/data-store';
 import { StatCard } from '@/components/ui/card';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
-import { formatINR } from '@/lib/utils';
+import { formatINR, formatDate } from '@/lib/utils';
+import { PayRentModal } from '@/components/pay-rent-modal';
+import { rentDueInfo, currentPeriodLabel } from '@/lib/payment';
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { currentRole, properties, tickets, leads, receipts, renewalAlerts, loadPropertiesFromApi } = useDataStore();
+  const {
+    currentRole,
+    properties,
+    tickets,
+    leads,
+    receipts,
+    renewalAlerts,
+    loadPropertiesFromApi,
+    rentPayments,
+    loadRentPayments,
+  } = useDataStore();
+  const [payRentOpen, setPayRentOpen] = useState(false);
 
-  const isAdmin = currentRole === 'cypress_admin';
-  const isOwner = currentRole === 'owner';
-  const isTenant = currentRole === 'tenant';
+  // Resolve the effective role from the account's actual roles, falling back to
+  // the persisted portal selection. This guarantees tenant content (incl. Pay
+  // Rent) renders for tenant accounts even before the layout syncs currentRole.
+  const roles = user?.roles ?? [];
+  const resolvedRole = roles.includes(currentRole as (typeof roles)[number])
+    ? currentRole
+    : roles.includes('cypress_admin') || roles.includes('app_admin')
+      ? 'cypress_admin'
+      : roles.includes('owner')
+        ? 'owner'
+        : roles.includes('tenant')
+          ? 'tenant'
+          : currentRole;
+
+  const isAdmin = resolvedRole === 'cypress_admin';
+  const isOwner = resolvedRole === 'owner';
+  const isTenant = resolvedRole === 'tenant';
 
   // Properties are sourced from the database on mount so the dashboard reflects
   // the tenant's actual connected property (not stale/persisted data).
   useEffect(() => {
     loadPropertiesFromApi();
   }, [loadPropertiesFromApi]);
+
+  // Rent payments are stored durably in IndexedDB; hydrate them on mount.
+  useEffect(() => {
+    loadRentPayments();
+  }, [loadRentPayments]);
 
   // Resolve the property the logged-in tenant is connected to.
   const tenantProperty = isTenant
@@ -46,8 +81,22 @@ export default function DashboardPage() {
           p.active_tenant_id === user?.id ||
           (user?.mobile && p.active_tenant_phone?.includes(user.mobile)) ||
           (user?.full_name && p.active_tenant_name?.toLowerCase().includes(user.full_name.toLowerCase())),
-      )
+      ) ??
+      // Fallback: if the tenant can see exactly one property (e.g. their own
+      // unit returned by the API), treat it as their rented home.
+      (properties.length === 1 ? properties[0] : undefined)
     : undefined;
+
+  // This tenant's rent payments (newest first), for the dashboard history.
+  const myPayments = isTenant
+    ? rentPayments.filter((p) => p.tenant_id === user?.id || (tenantProperty && p.property_id === tenantProperty.id))
+    : [];
+
+  // Rent-cycle status for the current month.
+  const dueInfo = rentDueInfo();
+  const period = currentPeriodLabel();
+  const paidThisPeriod =
+    isTenant && myPayments.some((p) => p.period === period && p.status !== 'rejected');
 
   const tenantPropertyLabel = tenantProperty
     ? [tenantProperty.flat_no, tenantProperty.apartment_name].filter(Boolean).join(', ') ||
@@ -212,9 +261,13 @@ export default function DashboardPage() {
             <StatCard
               label="Monthly Rent"
               value={tenantProperty ? formatINR(tenantProperty.monthly_rent) : '—'}
-              hint={tenantProperty?.lease_end_date
-                ? `Lease ends ${new Date(tenantProperty.lease_end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                : 'No active lease'}
+              hint={
+                !tenantProperty
+                  ? 'No active lease'
+                  : paidThisPeriod
+                    ? `Paid for ${period}`
+                    : `${dueInfo.label} · due ${formatDate(dueInfo.dueDate.toISOString())}`
+              }
               icon={Receipt}
               accent="sky"
             />
@@ -238,6 +291,107 @@ export default function DashboardPage() {
             />
           </StaggerItem>
         </Stagger>
+      )}
+
+      {/* TENANT: PAY RENT */}
+      {isTenant && (
+        <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
+          {/* Pay Rent CTA */}
+          <div className="lg:col-span-1 rounded-2xl border border-cypress-200 bg-gradient-to-br from-cypress-50 to-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cypress-gradient text-white shadow-soft">
+                <IndianRupee className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Pay Rent</h3>
+                <p className="text-[11px] text-slate-500">Offline transfer · upload receipt</p>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-cypress-900">
+              {tenantProperty ? formatINR(tenantProperty.monthly_rent) : '—'}
+            </p>
+            <p className="mb-3 mt-0.5 text-xs text-slate-500">
+              {period} rent{tenantProperty ? ` · UPID ${tenantProperty.upid}` : ''}
+            </p>
+
+            {/* Days-left / due status */}
+            {paidThisPeriod ? (
+              <div className="mb-4 flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 text-[11px] font-bold text-emerald-800">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Paid for {period}
+              </div>
+            ) : (
+              <div
+                className={`mb-4 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold ${
+                  dueInfo.overdue
+                    ? 'bg-red-50 border-red-200 text-red-700'
+                    : dueInfo.daysLeft <= 3
+                      ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}
+              >
+                <Clock className="h-3.5 w-3.5" /> {dueInfo.label} · Due {formatDate(dueInfo.dueDate.toISOString())}
+              </div>
+            )}
+
+            <button
+              type="button"
+              disabled={!tenantProperty}
+              onClick={() => setPayRentOpen(true)}
+              className="btn-shine inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cypress-gradient px-4 py-2.5 text-sm font-bold text-white shadow-glow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <IndianRupee className="h-4 w-4" /> {paidThisPeriod ? 'Pay Again' : 'Pay Rent Now'}
+            </button>
+            {!tenantProperty && (
+              <p className="mt-2 text-center text-[11px] text-slate-400">
+                No connected property yet. Contact Cypress to link your tenancy.
+              </p>
+            )}
+          </div>
+
+          {/* Recent payments */}
+          <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Recent Rent Payments</h3>
+              <Link href="/invoices" className="text-xs font-semibold text-cypress-700 hover:text-cypress-900">
+                View receipts
+              </Link>
+            </div>
+            {myPayments.length === 0 ? (
+              <p className="py-8 text-center text-xs text-slate-400">
+                No payments yet. Use “Pay Rent Now” to submit your first payment.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {myPayments.slice(0, 4).map((p) => {
+                  const badge =
+                    p.status === 'verified'
+                      ? { cls: 'bg-emerald-50 text-emerald-700', Icon: CheckCircle2, label: 'Verified' }
+                      : p.status === 'rejected'
+                        ? { cls: 'bg-red-50 text-red-700', Icon: XCircle, label: 'Rejected' }
+                        : { cls: 'bg-amber-50 text-amber-700', Icon: Clock, label: 'Awaiting verification' };
+                  return (
+                    <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-800">
+                          {formatINR(p.amount)} · {p.period}
+                        </p>
+                        <p className="truncate text-[11px] text-slate-500">
+                          Paid {formatDate(p.payment_date)} · {p.method.replace(/_/g, ' ')}
+                          {p.reference ? ` · Ref ${p.reference}` : ''}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${badge.cls}`}
+                      >
+                        <badge.Icon className="h-3 w-3" /> {badge.label}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Quick Action Navigation Cards */}
@@ -286,6 +440,17 @@ export default function DashboardPage() {
           </div>
         </Link>
       </div>
+
+      {/* Pay Rent modal (tenant) */}
+      {isTenant && tenantProperty && payRentOpen && (
+        <PayRentModal
+          isOpen={payRentOpen}
+          onClose={() => setPayRentOpen(false)}
+          property={tenantProperty}
+          tenantId={user?.id ?? ''}
+          tenantName={user?.full_name ?? 'Tenant'}
+        />
+      )}
     </div>
   );
 }

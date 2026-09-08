@@ -22,6 +22,8 @@ import type {
 import { useAuth } from './auth-store';
 import { api } from './api-client';
 import { idbLoadAllAttachments, idbSaveAttachment } from './media-idb';
+import type { RentPayment } from './payment';
+import { idbLoadRentPayments, idbSaveRentPayment } from './payments-idb';
 
 export const CITIES_MASTER: CityOption[] = [
   {
@@ -245,6 +247,10 @@ interface DataStoreState {
   registeredUsers: DirectoryUser[];
   propertyAttachments: Record<string, PropertyAttachmentBucket>;
   attachmentsLoaded: boolean;
+  // Tenant-submitted rent payments (offline transfer + uploaded receipt),
+  // stored durably in IndexedDB. Loaded via loadRentPayments().
+  rentPayments: RentPayment[];
+  rentPaymentsLoaded: boolean;
   // Persisted owner/tenant connection snapshots keyed by property id. These
   // survive a refresh and are re-applied to the backend-loaded property list.
   assignedProperties: Record<string, Property>;
@@ -293,6 +299,11 @@ interface DataStoreState {
   removePropertyPhoto: (propertyId: string, id: string) => void;
   addPropertyVideo: (propertyId: string, asset: Omit<StoredMediaAsset, 'id' | 'uploaded_at'>) => Promise<void>;
   removePropertyVideo: (propertyId: string, id: string) => void;
+
+  // Rent payments (offline; scalable to a payment gateway later)
+  loadRentPayments: () => Promise<void>;
+  submitRentPayment: (input: Omit<RentPayment, 'id' | 'status' | 'created_at'>) => Promise<RentPayment>;
+  updateRentPaymentStatus: (paymentId: string, status: RentPayment['status']) => Promise<void>;
 
   // Association maintenance & move charges
   updateAssociationMaintenance: (propertyId: string, record: Partial<AssociationMaintenanceRecord>) => void;
@@ -359,6 +370,8 @@ export const useDataStore = create<DataStoreState>()(
       registeredUsers: INITIAL_DIRECTORY_USERS,
       propertyAttachments: {},
       attachmentsLoaded: false,
+      rentPayments: [],
+      rentPaymentsLoaded: false,
       assignedProperties: {},
       propertiesLoading: false,
       propertiesLoaded: false,
@@ -817,6 +830,38 @@ export const useDataStore = create<DataStoreState>()(
         idbSaveAttachment(propertyId, nextBucket).catch((e) => console.error('persist attachments', e));
       },
 
+      loadRentPayments: async () => {
+        if (get().rentPaymentsLoaded) return;
+        const stored = await idbLoadRentPayments();
+        // Merge stored payments with any submitted earlier this session.
+        const byId = new Map<string, RentPayment>();
+        [...stored, ...get().rentPayments].forEach((p) => byId.set(p.id, p));
+        const merged = Array.from(byId.values()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+        set({ rentPayments: merged, rentPaymentsLoaded: true });
+      },
+
+      submitRentPayment: async (input) => {
+        const payment: RentPayment = {
+          ...input,
+          id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          status: 'awaiting_verification',
+          created_at: new Date().toISOString(),
+        };
+        // Persist durably first so a large receipt that exceeds quota surfaces an
+        // error before we report success to the tenant.
+        await idbSaveRentPayment(payment);
+        set({ rentPayments: [payment, ...get().rentPayments] });
+        return payment;
+      },
+
+      updateRentPaymentStatus: async (paymentId, status) => {
+        const existing = get().rentPayments.find((p) => p.id === paymentId);
+        if (!existing) return;
+        const updated = { ...existing, status };
+        await idbSaveRentPayment(updated);
+        set({ rentPayments: get().rentPayments.map((p) => (p.id === paymentId ? updated : p)) });
+      },
+
       addInventoryItem: (propertyId, item) => {
         const newItem: PropertyInventoryItem = {
           ...item,
@@ -1092,6 +1137,8 @@ export const useDataStore = create<DataStoreState>()(
           propertiesLoaded: _propertiesLoaded,
           propertyAttachments: _propertyAttachments,
           attachmentsLoaded: _attachmentsLoaded,
+          rentPayments: _rentPayments,
+          rentPaymentsLoaded: _rentPaymentsLoaded,
           ...rest
         } = state;
         return rest;

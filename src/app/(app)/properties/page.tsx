@@ -2,17 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Building2, Plus, Home, MapPin, ShieldCheck, Sparkles, User, AlertTriangle } from 'lucide-react';
+import { Building2, Plus, Home, MapPin, ShieldCheck, Sparkles, User, AlertTriangle, IndianRupee } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { useDataStore } from '@/lib/data-store';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { formatINR } from '@/lib/utils';
+import { formatINR, formatDate } from '@/lib/utils';
 import type { Property } from '@/lib/types';
 
 export default function PropertiesPage() {
   const { user } = useAuth();
-  const { currentRole, properties, renewalAlerts, loadPropertiesFromApi, propertiesLoading } = useDataStore();
+  const {
+    currentRole,
+    properties,
+    renewalAlerts,
+    loadPropertiesFromApi,
+    propertiesLoading,
+    rentPayments,
+    loadRentPayments,
+  } = useDataStore();
   const [filterOccupancy, setFilterOccupancy] = useState<string>('all');
   const [filterCity, setFilterCity] = useState<string>('all');
 
@@ -21,33 +29,45 @@ export default function PropertiesPage() {
     loadPropertiesFromApi();
   }, [loadPropertiesFromApi]);
 
+  // Rent payments (durable in IndexedDB) power the per-property rent payment date.
+  useEffect(() => {
+    loadRentPayments();
+  }, [loadRentPayments]);
+
+  // latestRentPaymentFor returns the most recent rent payment for a property, so
+  // admins/owners can see when rent was last paid at a glance.
+  const latestRentPaymentFor = (propertyId: string) =>
+    rentPayments
+      .filter((p) => p.property_id === propertyId && p.status !== 'rejected')
+      .sort((a, b) => (a.payment_date < b.payment_date ? 1 : -1))[0];
+
   const isAdmin = currentRole === 'cypress_admin';
   const isOwner = currentRole === 'owner';
   const isTenant = currentRole === 'tenant';
 
   // Role-filtered view:
-  // Admin sees all properties
-  // Owner sees properties where they are owner
-  // Tenant sees their rented property
+  // Admin sees all properties.
+  // Owner sees only properties they own.
+  // Tenant sees only the property they are the active tenant of.
+  // Non-admins are never shown properties that aren't linked to them.
   const roleProperties = properties.filter((p) => {
     if (isAdmin) return true;
+    if (!user) return false;
     if (isOwner) {
-      if (!user) return true;
       return (
         p.owner_id === user.id ||
-        (user.mobile && p.owner_phone?.includes(user.mobile)) ||
-        (user.full_name && p.owner_name?.toLowerCase().includes(user.full_name.toLowerCase()))
+        (!!user.mobile && !!p.owner_phone?.includes(user.mobile)) ||
+        (!!user.full_name && !!p.owner_name?.toLowerCase().includes(user.full_name.toLowerCase()))
       );
     }
     if (isTenant) {
-      if (!user) return true;
       return (
         p.active_tenant_id === user.id ||
-        (user.mobile && p.active_tenant_phone?.includes(user.mobile)) ||
-        (user.full_name && p.active_tenant_name?.toLowerCase().includes(user.full_name.toLowerCase()))
+        (!!user.mobile && !!p.active_tenant_phone?.includes(user.mobile)) ||
+        (!!user.full_name && !!p.active_tenant_name?.toLowerCase().includes(user.full_name.toLowerCase()))
       );
     }
-    return true;
+    return false;
   });
 
   const filteredProperties = roleProperties.filter((p) => {
@@ -119,6 +139,7 @@ export default function PropertiesPage() {
         {filteredProperties.map((p) => {
           const alert = renewalAlerts.find((a) => a.property_id === p.id);
           const isVacant = p.occupancy_status === 'vacant';
+          const latestPay = latestRentPaymentFor(p.id);
 
           return (
             <Link key={p.id} href={`/properties/${p.id}`}>
@@ -180,6 +201,25 @@ export default function PropertiesPage() {
                         {p.active_tenant_name || <span className="text-amber-600 italic">No tenant assigned</span>}
                       </span>
                     </div>
+                    {!isVacant && (
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span className="flex items-center gap-1">
+                          <IndianRupee className="h-3 w-3 text-cypress-600" /> Rent Paid:
+                        </span>
+                        {latestPay ? (
+                          <span className="flex items-center gap-1 font-semibold text-emerald-700">
+                            {formatDate(latestPay.payment_date)}
+                            {latestPay.status === 'awaiting_verification' && (
+                              <span className="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700">
+                                Unverified
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="italic text-amber-600">No payment yet</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

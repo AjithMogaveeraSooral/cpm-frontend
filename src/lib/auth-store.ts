@@ -36,22 +36,44 @@ interface AuthState {
   updateProfile: (input: UpdateProfileInput) => Promise<UserSummary>;
 }
 
-// ensureRoleAccess validates that the authenticated user can use the console.
-// The selected user type is treated as a preference: if the user holds it (or
-// has a pending application for it) we honor it, but a user who holds any other
-// approved role is still allowed in rather than dead-ended. Only an account
-// with no approved roles and no pending applications is rejected.
+// ensureRoleAccess validates that the authenticated user may use the portal they
+// selected on the login screen. The selected portal is ENFORCED: a user who
+// picks "Tenant" must actually hold (or have a pending application for) the
+// tenant role, otherwise login is rejected with a role-not-found error. This
+// prevents an owner/admin from being silently routed into a different portal.
 function ensureRoleAccess(user: UserSummary, role?: Role): void {
-  if (role && user.pending_roles?.includes(role) && user.roles.length === 0) {
-    return; // pending for the selected type -> routed to /pending
+  // No portal preference supplied: allow any account that has (or is applying
+  // for) a role.
+  if (!role) {
+    if (user.roles.length > 0 || (user.pending_roles?.length ?? 0) > 0) return;
+    tokenStore.clear();
+    throw new ApiError(
+      403,
+      'not_approved',
+      'You are not registered yet. Please sign up to request access.',
+    );
   }
-  if (user.roles.length > 0) return;
-  if ((user.pending_roles?.length ?? 0) > 0) return; // routed to /pending
+
+  // The Cypress Admin portal is also satisfied by the higher-privileged
+  // app_admin role.
+  const acceptedRoles: Role[] = role === 'cypress_admin' ? ['cypress_admin', 'app_admin'] : [role];
+
+  // Approved for the selected portal -> allow straight in.
+  if (user.roles.some((r) => acceptedRoles.includes(r))) return;
+
+  // Applied for the selected portal but not yet approved -> route to /pending.
+  if (user.roles.length === 0 && (user.pending_roles ?? []).some((r) => acceptedRoles.includes(r))) {
+    return;
+  }
+
+  // The account exists but does not hold the selected portal's role. Reject so
+  // the user is not routed into a different dashboard.
   tokenStore.clear();
+  const label = role === 'tenant' ? 'Tenant' : role === 'owner' ? 'Property Owner' : 'Cypress Admin';
   throw new ApiError(
-    403,
-    'not_approved',
-    'You are not registered yet. Please sign up to request access.',
+    404,
+    'role_not_found',
+    `No ${label} account found for this mobile number. Select the correct portal or sign up as a ${label}.`,
   );
 }
 
