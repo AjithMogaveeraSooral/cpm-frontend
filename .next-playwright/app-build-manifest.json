@@ -18,20 +18,75 @@
       "static/css/app/(public)/layout.css",
       "static/chunks/app/(public)/layout.js"
     ],
+    "/(public)/about/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/about/page.css",
+      "static/chunks/app/(public)/about/page.js"
+    ],
+    "/(public)/contact/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/contact/page.css",
+      "static/chunks/app/(public)/contact/page.js"
+    ],
+    "/(public)/owner-services/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/owner-services/page.css",
+      "static/chunks/app/(public)/owner-services/page.js"
+    ],
     "/(public)/owners/plans-pricing/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
+      "static/css/app/(public)/owners/plans-pricing/page.css",
       "static/chunks/app/(public)/owners/plans-pricing/page.js"
     ],
-    "/(public)/about/founder/page": [
+    "/(public)/owners/nri-property-management/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(public)/about/founder/page.js"
+      "static/css/app/(public)/owners/nri-property-management/page.css",
+      "static/chunks/app/(public)/owners/nri-property-management/page.js"
+    ],
+    "/(public)/owners/faqs/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/owners/faqs/page.css",
+      "static/chunks/app/(public)/owners/faqs/page.js"
+    ],
+    "/(public)/tenants/faqs/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/tenants/faqs/page.css",
+      "static/chunks/app/(public)/tenants/faqs/page.js"
+    ],
+    "/(public)/tenants/services/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/tenants/services/page.css",
+      "static/chunks/app/(public)/tenants/services/page.js"
+    ],
+    "/(public)/owner-inquiry/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/owner-inquiry/page.css",
+      "static/chunks/app/(public)/owner-inquiry/page.js"
+    ],
+    "/(public)/tenant-inquiry/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/tenant-inquiry/page.css",
+      "static/chunks/app/(public)/tenant-inquiry/page.js"
     ],
     "/(public)/tenants/find-property/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(public)/tenants/find-property/page.js"
+    ],
+    "/(public)/about/founder/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(public)/about/founder/page.js"
     ],
     "/(public)/explore/[upid]/error": [
       "static/chunks/webpack.js",
@@ -52,11 +107,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(public)/explore/[upid]/page.js"
-    ],
-    "/(public)/owner-inquiry/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(public)/owner-inquiry/page.js"
     ]
   }
 }

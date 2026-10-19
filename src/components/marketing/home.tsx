@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Building2, Camera, Check, ClipboardCheck, FileText, Headphones, House, IndianRupee, MapPin, ShieldCheck, Smartphone, Users, Wallet, Wrench } from 'lucide-react';
+import { ArrowRight, Camera, Check, ClipboardCheck, FileText, Headphones, House, IndianRupee, MapPin, Receipt, ShieldCheck, Smartphone, Users, Wrench } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 import { Actions, FaqList, PlanCards, Section, Services, marketingStyles as s } from './sections';
 import { ownerFaqs, tenantFaqs } from '@/lib/site-content';
@@ -20,12 +20,14 @@ const trustPoints = [
   { label: 'Inspection Reports', Icon: Camera },
   { label: 'Service Coordination', Icon: Headphones },
 ];
-const records = [
-  { label: 'Rental records', text: 'Rent tracking and payment history', Icon: Wallet },
-  { label: 'Maintenance', text: 'Requests, estimates and updates', Icon: Wrench },
-  { label: 'Inspections', text: 'Documented property condition', Icon: ClipboardCheck },
-  { label: 'Documents', text: 'Agreements, reports and receipts', Icon: FileText },
+const sidebarItems = ['Dashboard', 'Properties', 'Rent', 'Maintenance', 'Inspections', 'Documents'];
+const kpis = ['Properties', 'Rent collected', 'Open requests', 'Inspections'];
+const activity = [
+  { label: 'Rent received', Icon: Receipt },
+  { label: 'Maintenance request', Icon: Wrench },
+  { label: 'Inspection completed', Icon: ClipboardCheck },
 ];
+const quickActions = ['Rent', 'Maintenance', 'Documents', 'Requests'];
 
 export function MarketingHome() {
   return <div className={h.home}>
@@ -34,19 +36,17 @@ export function MarketingHome() {
         <div className={h.heroCopy}>
           <span className={s.eyebrow}>Property management services in Bengaluru</span>
           <h1 id="home-heading">Your Property.<br />Our Responsibility.<br /><em>Complete Peace of Mind.</em></h1>
-          <p className={h.intro}>Smart, Transparent, App-Based Property Management in Bengaluru.</p>
-          <p className={h.heroDescription}>Owning a rental property should be rewarding, not overwhelming. Cypress simplifies tenant management, rent tracking, maintenance, inspections and documentation through one connected platform.</p>
+          <p className={h.heroDescription}>Smart, transparent and app-based property management. From finding the right tenant to rent tracking, maintenance and documentation — all in one place.</p>
           <ul className={h.benefits} aria-label="Management benefits">
             <li><IndianRupee aria-hidden="true" /><span><strong>₹0</strong>Onboarding Fees</span></li>
             <li><ShieldCheck aria-hidden="true" /><span><strong>Plans from 5%</strong>Inclusive of GST</span></li>
             <li><Smartphone aria-hidden="true" /><span><strong>Digital Property</strong>Management</span></li>
           </ul>
-          <Actions secondaryLabel="Explore Our Services" secondaryHref="/owner-services" />
+          <Actions ownerLabel="List Your Property" secondaryLabel="Explore Our Services" secondaryHref="/owner-services" />
         </div>
         <figure className={h.heroVisual}>
           <Image src={propertyHero} alt="Illustrative modern apartment building from the Cypress design reference" fill sizes="(max-width: 800px) 100vw, 50vw" priority className={h.heroImage} />
-          <figcaption className={h.location}><MapPin aria-hidden="true" /><span><strong>Bengaluru</strong>Our focus. Your advantage.</span></figcaption>
-          <span className={h.illustrationLabel}>Property illustration</span>
+          <figcaption className={h.location}><MapPin aria-hidden="true" /><span><strong>Bengaluru</strong>Our Focus. Your Advantage.</span></figcaption>
         </figure>
       </div>
     </section>
@@ -54,8 +54,7 @@ export function MarketingHome() {
     <Section title="Everything Your Property Needs. In One Place." eyebrow="Our services" id="services" className={`${h.centered} ${h.services}`}><Services /></Section>
 
     <Section title="Built on Experience. Driven by Transparency." eyebrow="Why trust Cypress?" tone="soft" id="why-us" className={h.centered}>
-      <p className={s.lead}>Cypress was founded by someone who understands renting and property ownership firsthand, supported by over a decade of experience delivering enterprise technology solutions.</p>
-      <p className={s.lead}>Our approach brings together clear communication, transparent pricing, documented processes and technology-enabled property management.</p>
+      <p className={s.lead}>Cypress combines firsthand experience as both a property owner and tenant, with over a decade of experience in enterprise technology and process management.</p>
       <ul className={h.trustPoints}>{trustPoints.map(({ label, Icon }) => <li key={label}><Icon size={30} aria-hidden="true" /><span>{label}</span></li>)}</ul>
     </Section>
 
@@ -63,48 +62,61 @@ export function MarketingHome() {
       <div className={h.split}>
         <div>
           <span className={s.eyebrow}>The Cypress application</span>
-          <h2>One Property.<br />One Digital Record.</h2>
-          <p className={s.lead}>Every property receives a unique Cypress Property ID (UPID), connecting its documents, rental records, inspections and maintenance history.</p>
-          <p className={s.lead}>One connected platform. Fewer follow-ups. Better visibility.</p>
-          <div className={s.actions}><Link href="/about/application" className={s.button}>Explore Our Application<ArrowRight size={16} aria-hidden="true" /></Link></div>
-        </div>
-        <div className={h.platform} aria-label="Cypress platform overview">
-          <div className={h.platformHeader}><BrandLogo className={h.previewLogo} /><span>Platform overview</span></div>
-          <div className={h.platformBody}>
-            <div className={h.platformTitle}><span className={h.propertyIcon}><Building2 aria-hidden="true" /></span><div><h3>Your property, connected.</h3><p>One Cypress Property ID · UPID</p></div></div>
-            <div className={h.recordGrid}>{records.map(({ label, text, Icon }) => <div key={label}><Icon size={22} aria-hidden="true" /><strong>{label}</strong><span>{text}</span></div>)}</div>
-            <div className={h.portalLinks}><Link href="/owner-login">Owner Portal<ArrowRight size={14} aria-hidden="true" /></Link><Link href="/tenant-login">Tenant Portal<ArrowRight size={14} aria-hidden="true" /></Link></div>
-            <p className={h.previewNote}>Overview only. Available records and features depend on your role and plan.</p>
+          <h2>One Platform.<br />Complete Visibility.</h2>
+          <p className={s.lead}>Track rent, maintenance, inspections and documents through a simple and secure dashboard — for both owners and tenants. Every property receives a unique Cypress Property ID (UPID) connecting its records.</p>
+          <div className={s.actions}>
+            <Link href="/about/application" className={s.button}>Explore the Application<ArrowRight size={16} aria-hidden="true" /></Link>
+            <Link href="/about/application#owner-tenant-access" className={s.textLink}>Learn more</Link>
           </div>
+          <p className={h.previewNote}>Overview only. Available records and features depend on your role and plan.</p>
+        </div>
+        <div className={h.devices} role="img" aria-label="Illustration of the Cypress owner and tenant dashboards">
+          <div className={h.laptop}>
+            <div className={h.screen}>
+              <aside className={h.sidebar}>{sidebarItems.map((item, index) => <span key={item} data-active={index === 0}>{item}</span>)}</aside>
+              <div className={h.screenMain}>
+                <div className={h.screenTop}><strong>Hello, Owner</strong><BrandLogo className={h.previewLogo} /></div>
+                <div className={h.kpis}>{kpis.map((label) => <div key={label}><i /><span>{label}</span></div>)}</div>
+                <div className={h.activity}><strong>Recent Activity</strong>{activity.map(({ label, Icon }) => <div key={label}><Icon size={14} /><span>{label}</span><i /></div>)}</div>
+              </div>
+            </div>
+            <div className={h.laptopBase} />
+          </div>
+          <div className={h.phone}>
+            <strong>Good Morning!</strong>
+            <div className={h.phoneCard} />
+            <div className={h.quick}>{quickActions.map((label) => <span key={label}>{label}</span>)}</div>
+          </div>
+          <span className={h.deviceNote}>Owner and Tenant Dashboards</span>
         </div>
       </div>
     </Section>
 
-    <Section title="How Cypress Works" eyebrow="Three simple steps to get started" id="how-it-works" className={h.centered}>
+    <Section title="Three Simple Steps to Get Started." eyebrow="How it works" id="how-it-works" className={h.centered}>
       <ol className={h.steps}>{[
-        ['Register Your Property', 'Share your property details, location and management requirements.'],
-        ['Choose Your Plan', 'Select Bronze, Silver or Gold based on your service requirements.'],
-        ['Stay Connected', 'Access available updates on rent, services, inspections and documents through Cypress.'],
+        ['Register Your Property', 'Share your property details and requirements.'],
+        ['Choose Your Plan', 'Select Bronze, Silver or Gold based on your needs.'],
+        ['Stay Connected', 'Track available updates through the Cypress platform.'],
       ].map(([title, text], index) => <li key={title}><span className={h.step}>0{index + 1}</span><div><h3>{title}</h3><p>{text}</p></div></li>)}</ol>
     </Section>
 
-    <Section title="Our Plans at a Glance" eyebrow="Transparent pricing. The right care for your property." id="plans" className={h.centered}>
+    <Section title="Transparent Pricing. The Right Care for Every Property." eyebrow="Our plans" id="plans" className={h.centered}>
       <PlanCards />
       <p className={s.note}>Maintenance coverage varies by plan and signed schedule. Response targets are not completion guarantees; repairs are not unlimited.</p>
       <div className={s.actions}><Link href="/owners/plans-pricing" className={s.button}>Compare Plans &amp; Pricing<ArrowRight size={16} aria-hidden="true" /></Link></div>
     </Section>
 
-    <Section tone="soft" id="nri-support" className={h.nri}>
+    <Section id="nri-support" className={h.nri}>
       <div className={h.nriGrid}>
         <div>
-          <span className={s.eyebrow}>Own a Bengaluru property while living abroad?</span>
-          <h2>Distance Shouldn’t Mean Losing Control.</h2>
-          <p className={s.lead}>Whether you’re in the UAE, UK, USA, Singapore or elsewhere, Cypress helps you coordinate tenant management, rent, inspections, maintenance and documentation remotely.</p>
-          <div className={s.actions}><Link href="/owners/nri-property-management" className={s.button}>Explore NRI Property Management<ArrowRight size={16} aria-hidden="true" /></Link></div>
+          <span className={s.eyebrow}>NRI property management</span>
+          <h2>Your Bengaluru Property.<br />Managed Wherever You Are.</h2>
+          <p className={s.lead}>Whether you’re in the UAE, UK, USA, Singapore or elsewhere, Cypress helps you stay informed and connected without handling every operational detail yourself.</p>
+          <div className={s.actions}><Link href="/owners/nri-property-management" className={s.button}>Explore NRI Services<ArrowRight size={16} aria-hidden="true" /></Link></div>
         </div>
         <div className={h.remoteVisual}>
           <Image src={remoteOwnership} alt="Illustration of a traveller at an airport" fill sizes="(max-width: 800px) 100vw, 40vw" className={h.remoteImage} />
-          <ul className={h.remoteFeatures}>{['Remote property coordination', 'Rental records', 'Inspection reports', 'Maintenance coordination', 'Digital documentation'].map(text => <li key={text}><Check size={17} aria-hidden="true" />{text}</li>)}</ul>
+          <ul className={h.remoteFeatures}>{['Remote property monitoring', 'Rental income tracking', 'Inspection reports', 'Maintenance approvals', 'Digital documentation'].map(text => <li key={text}><Check size={17} aria-hidden="true" />{text}</li>)}</ul>
         </div>
       </div>
     </Section>
@@ -119,13 +131,13 @@ export function MarketingHome() {
           <p className={s.attribution}>Sudish Kumar S — Founder<span className={h.founderRole}>Cypress Property Management Services</span></p>
           <Link href="/about/founder" className={s.textLink}>Why I Started Cypress<ArrowRight size={16} aria-hidden="true" /></Link>
         </div>
-        <aside className={h.founderMotto}><span aria-hidden="true">“</span>Technology for Convenience.<br /><strong>Transparency for Trust.</strong></aside>
+        <aside className={h.founderMotto}><span aria-hidden="true">“</span>Technology<br />for Convenience.<br /><strong>Transparency<br />for Trust.</strong></aside>
       </div>
     </Section>
 
     <Section title="Quick Answers for Owners and Tenants." eyebrow="Frequently asked questions" id="faqs" className={`${h.centered} ${h.homeFaqs}`}>
       <div className={s.twoColumns}>
-        <details className={h.faqGroup}><summary><House aria-hidden="true" /><span>Owner FAQs<small>Pricing, maintenance, approvals and more.</small></span></summary><FaqList items={ownerFaqs.slice(0, 4)} /><Link className={s.textLink} href="/owners/faqs">All Owner FAQs<ArrowRight size={16} aria-hidden="true" /></Link></details>
+        <details className={h.faqGroup}><summary><House aria-hidden="true" /><span>Owner FAQs<small>Pricing, maintenance, deposits, approvals and more.</small></span></summary><FaqList items={ownerFaqs.slice(0, 4)} /><Link className={s.textLink} href="/owners/faqs">All Owner FAQs<ArrowRight size={16} aria-hidden="true" /></Link></details>
         <details className={h.faqGroup}><summary><Users aria-hidden="true" /><span>Tenant FAQs<small>Renting, maintenance, documents and more.</small></span></summary><FaqList items={tenantFaqs.slice(0, 3)} /><Link className={s.textLink} href="/tenants/faqs">All Tenant FAQs<ArrowRight size={16} aria-hidden="true" /></Link></details>
       </div>
     </Section>

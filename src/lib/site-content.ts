@@ -110,3 +110,10 @@ export const tenantFaqs: FAQ[] = [
   { question: 'Where can I find receipts and rental documents?', answer: 'The tenant dashboard provides access to available payment records, rent receipts and tenancy documents, subject to the application release and records available for your tenancy.' },
   { question: 'What happens when I move out?', answer: 'Cypress coordinates the agreed notice, inspection and settlement process. Deposit holdings, permitted deductions and settlement terms are documented in the applicable agreements.' },
 ];
+// Feature highlights shown on the plans & pricing cards. Response times are
+// response targets, not repair-completion guarantees.
+export const planFeatures: Record<string, readonly string[]> = {
+  Bronze: ['Tenant sourcing & screening', 'Rent tracking & documentation', 'Up to 2 property visits per year', 'Maintenance coordination (owner-funded)', 'Access to owner dashboard'],
+  Silver: ['All Bronze services', 'Up to 4 property visits per year', 'Maintenance response target within 48 hours', 'Selectable maintenance coverage (Labour Only / Materials Only / Labour + Materials)', 'Dedicated property manager'],
+  Gold: ['All Silver services', 'Up to 6 property visits per year', 'Maintenance response target within 24 hours', 'All-inclusive maintenance option (eligible repairs and materials)', 'Priority support'],
+};

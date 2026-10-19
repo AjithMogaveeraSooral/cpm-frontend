@@ -31,9 +31,10 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    ".next-playwright/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    ".next-playwright/types/**/*.ts"
+    ".next-cpm-dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

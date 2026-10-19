@@ -1,5 +1,41 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test('redesigned public pages fit mobile screens without horizontal overflow', async ({ page }) => {
+  for (const path of ['/about', '/contact', '/owner-services', '/owners/plans-pricing', '/owners/nri-property-management', '/owners/faqs', '/tenants/faqs', '/tenants/services', '/owner-inquiry', '/tenant-inquiry', '/tenants/find-property']) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    for (const width of [320, 390, 768]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${path} overflow at ${width}px`).toBe(true);
+    }
+  }
+});
+
+test('pricing calculator updates fees and balances when rent and plan change', async ({ page }) => {
+  await page.goto('/owners/plans-pricing');
+  const calculator = page.getByRole('region', { name: 'Estimate Your Monthly Management Fee' });
+  await calculator.getByLabel('Monthly Rent (₹)', { exact: true }).fill('50000');
+  await expect(calculator.getByText('₹2,500', { exact: true })).toBeVisible();
+  await expect(calculator.getByText('₹47,500', { exact: true })).toBeVisible();
+  await calculator.getByRole('button', { name: /Gold/ }).click();
+  await expect(calculator.getByRole('button', { name: /Gold/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(calculator.getByText('₹7,500', { exact: true })).toBeVisible();
+  await expect(calculator.getByText('₹42,500', { exact: true })).toBeVisible();
+});
+
+test('owner FAQ search filters questions and recovers from no matches', async ({ page }) => {
+  await page.goto('/owners/faqs');
+  const search = page.getByRole('searchbox', { name: 'Search owner questions' });
+  await search.fill('onboarding fee');
+  const question = page.locator('summary').filter({ hasText: 'Is there an onboarding fee?' });
+  await question.click();
+  await expect(page.getByText(/All three plans have ₹0 onboarding fees/)).toBeVisible();
+  await search.fill('zzzz-no-matching-question');
+  await expect(page.getByText(/No questions match/)).toBeVisible();
+  await search.fill('');
+  await expect(question).toBeVisible();
+});
+
 async function ownerForm(page: Page, name = 'Browser Test') {
   await page.goto('/owner-inquiry?plan=gold');
   await page.getByLabel('Full name', { exact: true }).fill(name);
@@ -24,7 +60,7 @@ test('marketing home and mobile menus fit small screens', async ({ page }) => {
   await page.getByRole('navigation', { name: 'Mobile navigation' }).getByText('Owners', { exact: true }).click();
   await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Plans & Pricing' }).click();
   await expect(page).toHaveURL(/plans-pricing/);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Straightforward Pricing');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Simple Plans.');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -44,7 +80,7 @@ test('reviewed landing uses supplied branding, portrait and functional calls to 
   await portrait.scrollIntoViewIfNeeded();
   await expect(portrait).toBeVisible();
   await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
-  await expect(page.locator('#application').getByRole('link', { name: 'Explore Our Application' })).toHaveAttribute('href', '/about/application');
+  await expect(page.locator('#application').getByRole('link', { name: 'Explore the Application' })).toHaveAttribute('href', '/about/application');
   await page.locator('#founder').getByRole('link', { name: 'Why I Started Cypress' }).click();
   await expect(page).toHaveURL(/about\/founder/);
   await expect(page.getByRole('img', { name: 'Sudish Kumar S, founder of Cypress' })).toBeVisible();

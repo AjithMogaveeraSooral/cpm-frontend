@@ -3,12 +3,31 @@
 import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { ArrowRight, BarChart3, CalendarDays, FileText, Home, MapPin, MessageCircle, Phone, ShieldCheck, Users } from 'lucide-react';
 import { ZodError } from 'zod';
 import { api, ApiError } from '@/lib/api-client';
 import { approvedPlan, bhkOptions, furnishingOptions, inquiryPayload, localDate, planOptions, type InquiryKind } from './inquiry-schema';
+import p from '@/components/marketing/pages.module.css';
 
-const inputClass = 'mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-900 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20';
-type Field = { name: string; label: string; type?: string; options?: readonly string[]; autoComplete?: string; maxLength?: number; optional?: boolean; defaultValue?: string };
+type Field = { name: string; label: string; type?: string; options?: readonly string[]; autoComplete?: string; maxLength?: number; optional?: boolean; defaultValue?: string; full?: boolean; placeholder?: string };
+
+const ownerBenefits = [
+  { title: 'Personalized Discussion', text: 'We understand your requirements and suggest the right plan.', Icon: MessageCircle, tone: '' },
+  { title: 'Transparent Process', text: 'Clear information on services, pricing and next steps.', Icon: FileText, tone: p.icBlue },
+  { title: 'Trusted Coordination', text: 'From tenant search to maintenance, we keep you informed.', Icon: ShieldCheck, tone: p.icAmber },
+  { title: 'Better Returns', text: 'Professional management for hassle-free ownership.', Icon: BarChart3, tone: p.icRose },
+];
+const tenantBenefits = [
+  { title: 'Verified Properties', text: 'Curated rental options in trusted apartments and communities.', Icon: Home, tone: '' },
+  { title: 'Simpler Search', text: 'Share your preferences and we’ll match suitable options.', Icon: MapPin, tone: p.icBlue },
+  { title: 'Guided Support', text: 'Get assistance through the entire renting process.', Icon: Users, tone: p.icAmber },
+  { title: 'Hassle-Free Move-In', text: 'Support with documentation and coordination.', Icon: FileText, tone: p.icRose },
+];
+const nextSteps = [
+  { title: '1. Submit Details', text: 'Fill in the property information.', Icon: FileText },
+  { title: '2. We’ll Contact You', text: 'Our team will get in touch to understand your requirements.', Icon: Phone },
+  { title: '3. Discuss Options', text: 'We’ll share suitable management options and next steps.', Icon: CalendarDays },
+];
 
 export function InquiryForm({ kind }: { kind: InquiryKind }) {
   const query = useSearchParams();
@@ -18,29 +37,30 @@ export function InquiryForm({ kind }: { kind: InquiryKind }) {
   const [reference, setReference] = useState('');
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [count, setCount] = useState(0);
   const submitting = useRef(false);
   const successHeading = useRef<HTMLHeadingElement>(null);
   const errorSummary = useRef<HTMLDivElement>(null);
   const fields: Field[] = [
-    { name: 'name', label: 'Full name', autoComplete: 'name' },
-    { name: 'phone', label: 'Mobile number (include country code if abroad)', type: 'tel', autoComplete: 'tel', maxLength: 40 },
-    ...(owner ? [{ name: 'email', label: 'Email', type: 'email', autoComplete: 'email', maxLength: 255 }] : []),
-    { name: 'locality', label: owner ? 'Property locality' : 'Preferred locality' },
+    { name: 'name', label: 'Full name', autoComplete: 'name', placeholder: 'Enter your full name' },
+    { name: 'phone', label: 'Mobile number', type: 'tel', autoComplete: 'tel', maxLength: 40, placeholder: 'With country code if abroad' },
+    ...(owner ? [{ name: 'email', label: 'Email', type: 'email', autoComplete: 'email', maxLength: 255, full: true, placeholder: 'Enter your email address' }] : []),
+    { name: 'locality', label: owner ? 'Property locality' : 'Preferred locality', full: !owner, placeholder: 'e.g. Whitefield, Sarjapur, HSR Layout' },
     ...(owner ? [
-      { name: 'propertyName', label: 'Apartment / property name' },
+      { name: 'propertyName', label: 'Apartment / property name', placeholder: 'e.g. Prestige Lakeside' },
       { name: 'propertyType', label: 'Property type', options: ['Apartment', 'Independent house', 'Villa', 'Other'] },
     ] : [
-      { name: 'budgetMin', label: 'Minimum monthly budget (₹)', type: 'number' },
-      { name: 'budgetMax', label: 'Maximum monthly budget (₹)', type: 'number' },
+      { name: 'budgetMin', label: 'Minimum monthly budget (₹)', type: 'number', placeholder: 'e.g. 25000' },
+      { name: 'budgetMax', label: 'Maximum monthly budget (₹)', type: 'number', placeholder: 'e.g. 40000' },
     ]),
     { name: 'bhk', label: 'BHK', options: bhkOptions },
     { name: 'furnishing', label: owner ? 'Furnishing' : 'Furnishing preference', options: furnishingOptions },
     ...(owner ? [
       { name: 'occupancy', label: 'Occupancy status', options: ['Vacant', 'Occupied', 'Available soon', 'Discuss with Cypress'] },
-      { name: 'plan', label: 'Preferred plan', options: planOptions, defaultValue: approvedPlan(query.get('plan')) },
+      { name: 'plan', label: 'Preferred plan', options: planOptions, defaultValue: approvedPlan(query.get('plan')), full: true },
     ] : [
       { name: 'moveDate', label: 'Expected move-in date', type: 'date' },
-      { name: 'upid', label: 'Cypress property ID (optional)', optional: true, maxLength: 40, defaultValue: query.get('upid') ?? '' },
+      { name: 'upid', label: 'Cypress property ID (optional)', optional: true, maxLength: 40, defaultValue: query.get('upid') ?? '', placeholder: 'Optional' },
     ]),
   ];
 
@@ -83,53 +103,63 @@ export function InquiryForm({ kind }: { kind: InquiryKind }) {
     }
   }
 
-  return <div className="bg-slate-50 px-4 py-12 sm:py-20">
-    <div className="mx-auto max-w-5xl">
-      <p className="text-sm font-semibold uppercase tracking-widest text-teal-700">{owner ? 'Owner enquiry' : visit ? 'Property visit enquiry' : 'Rental requirement'}</p>
-      <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-slate-900 sm:text-5xl">{owner ? 'Tell Us About Your Property.' : "Let’s Help You Find Your Next Home."}</h1>
-      <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">{owner ? 'Share a few details about your property and our team can discuss suitable management options.' : "Tell us what you’re looking for and Cypress can contact you about suitable available rental properties."}</p>
-      <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_16rem]">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8" aria-label="Enquiry form">
-          {reference ? <div role="status" className="space-y-5">
-            <h2 ref={successHeading} tabIndex={-1} className="text-2xl font-bold text-teal-800">Your enquiry has been received.</h2>
-            <p className="text-slate-600">Keep this server reference for any follow-up. Cypress can contact you using the details you supplied.</p>
-            <p className="rounded-xl bg-teal-50 p-4 text-sm text-teal-900">Reference ID: <strong className="break-all">{reference}</strong></p>
-            <p className="text-sm text-slate-600">{visit ? 'This is a visit request, not a confirmed appointment. Availability and timing need to be agreed separately.' : 'Submitting an enquiry does not create a tenancy, property listing or management agreement.'}</p>
-            <Link className="inline-block font-semibold text-teal-700 underline" href={owner ? '/owners/plans-pricing' : '/tenants/find-property'}>{owner ? 'Review management plans' : 'Explore rental properties'}</Link>
-          </div> : <form onSubmit={submit} aria-busy={pending}>
-            <p className="mb-6 text-sm text-slate-500">All fields are required unless marked optional.</p>
-            {error && <div ref={errorSummary} tabIndex={-1} role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
-            <fieldset disabled={pending} className="grid min-w-0 gap-5 sm:grid-cols-2">
-              <legend className="sr-only">Contact and {owner ? 'property' : 'rental'} details</legend>
-              {fields.map((field) => <div key={field.name}>
-                <label htmlFor={`inquiry-${field.name}`} className="text-sm font-semibold text-slate-700">{field.label}</label>
-                {field.options ? <select id={`inquiry-${field.name}`} name={field.name} required defaultValue={field.defaultValue ?? ''} className={inputClass} aria-invalid={!!fieldErrors[field.name]} aria-describedby={fieldErrors[field.name] ? `error-${field.name}` : undefined}>
-                  <option value="" disabled>Select an option</option>
-                  {field.options.map((option) => <option key={option}>{option}</option>)}
-                </select> : <input id={`inquiry-${field.name}`} name={field.name} type={field.type ?? 'text'} required={!field.optional} autoComplete={field.autoComplete ?? 'off'} defaultValue={field.defaultValue} maxLength={field.maxLength ?? 150} min={field.type === 'date' ? localDate() : field.type === 'number' ? 1 : undefined} max={field.type === 'number' ? 99999999 : undefined} step={field.type === 'number' ? 1 : undefined} className={inputClass} aria-invalid={!!fieldErrors[field.name]} aria-describedby={fieldErrors[field.name] ? `error-${field.name}` : undefined} />}
-                {fieldErrors[field.name] && <p id={`error-${field.name}`} className="mt-1 text-sm text-red-700">{fieldErrors[field.name]}</p>}
-              </div>)}
-              <div className="sm:col-span-2">
-                <label htmlFor="inquiry-requirements" className="text-sm font-semibold text-slate-700">Additional requirements (optional)</label>
-                <textarea id="inquiry-requirements" name="requirements" rows={4} maxLength={2000} className={inputClass} aria-invalid={!!fieldErrors.requirements} aria-describedby="requirements-help requirements-error" />
-                <p id="requirements-help" className="mt-1 text-xs text-slate-500">Up to 2,000 characters. Do not include identity documents, bank details or other sensitive information.</p>
-                <p id="requirements-error" className="mt-1 text-sm text-red-700">{fieldErrors.requirements}</p>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="flex items-start gap-3 text-sm leading-relaxed text-slate-600"><input type="checkbox" name="consent" required className="mt-1 h-5 w-5 shrink-0 accent-teal-700" aria-describedby="consent-error" />I agree that Cypress may use these details to respond to this enquiry by phone or email where provided. This is not a booking or a service agreement.</label>
-                <p id="consent-error" className="mt-1 text-sm text-red-700">{fieldErrors.consent}</p>
-              </div>
-              <button type="submit" className="rounded-xl bg-teal-700 px-5 py-3 font-semibold text-white transition hover:bg-teal-800 disabled:opacity-60 sm:col-span-2">{pending ? 'Submitting…' : error ? 'Retry submission' : owner ? 'Submit Property Enquiry' : visit ? 'Submit Visit Request' : 'Submit Rental Requirement'}</button>
-            </fieldset>
-          </form>}
-        </section>
-        <aside className="space-y-4 text-sm leading-relaxed text-slate-600">
-          <h2 className="text-lg font-bold text-slate-900">What happens next?</h2>
-          <p>After the server accepts your enquiry, you’ll receive a reference ID here. Our team can review your requirements and contact you to discuss next steps.</p>
-          <p>{owner ? 'Your preferred plan is an expression of interest. Coverage and any agreement are confirmed separately.' : 'Property availability, viewings and move-in arrangements must be confirmed separately.'}</p>
-          <Link className="block font-semibold text-teal-700 underline" href={owner ? '/owners/faqs' : '/tenants/faqs'}>Read {owner ? 'owner' : 'tenant'} FAQs</Link>
-          <Link className="block font-semibold text-teal-700 underline" href="/contact">Contact and support</Link>
-        </aside>
+  const benefits = owner ? ownerBenefits : tenantBenefits;
+  return <div className={p.inqPage}>
+    <div className="mx-auto w-[min(1240px,calc(100%-32px))] sm:w-[min(1240px,calc(100%-48px))]">
+      <nav aria-label="Breadcrumb" className="mb-8"><ol className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+        <li><Link href="/" className="hover:text-teal-700 hover:underline">Home</Link></li><li aria-hidden="true">›</li>
+        <li><Link href={owner ? '/owner-services' : '/tenants/services'} className="hover:text-teal-700 hover:underline">{owner ? 'Owners' : 'Tenants'}</Link></li><li aria-hidden="true">›</li>
+        <li aria-current="page">{owner ? 'Owner Inquiry' : 'Tenant Inquiry'}</li>
+      </ol></nav>
+      <div className={p.inqGrid}>
+        <div className={p.inqIntro}>
+          <span className="block text-[11.5px] font-bold uppercase tracking-[0.18em] text-[#0a2a66]">{owner ? 'Owner inquiry' : visit ? 'Property visit inquiry' : 'Tenant inquiry'}</span>
+          <h1 className="mt-4">{owner ? 'Tell Us About ' : 'Let’s Help You '}<em>{owner ? 'Your Property.' : 'Find Your Next Home.'}</em></h1>
+          <p>{owner ? 'Share a few details about your property and our team can discuss suitable management options.' : 'Tell us what you’re looking for and Cypress can contact you about suitable available rental properties.'}</p>
+          <ul className={p.benefitList}>{benefits.map(({ title, text, Icon, tone }) => <li key={title}><div className={`${p.cardIcon} ${tone}`}><Icon size={24} aria-hidden="true" /></div><div><h3>{title}</h3><p>{text}</p></div></li>)}</ul>
+        </div>
+        <div className={`${p.formWrap} ${owner ? p.withSteps : ''}`}>
+          <section className={p.formCard} aria-label="Enquiry form">
+            <h2>{owner ? 'Property Details' : 'Your Rental Requirements'}</h2>
+            {reference ? <div role="status" className="mt-6 space-y-5">
+              <h3 ref={successHeading} tabIndex={-1} className="text-2xl font-bold text-teal-800">Your enquiry has been received.</h3>
+              <p className="text-slate-600">Keep this server reference for any follow-up. Cypress can contact you using the details you supplied.</p>
+              <p className={p.successRef}>Reference ID: <strong className="break-all">{reference}</strong></p>
+              <p className="text-sm text-slate-600">{visit ? 'This is a visit request, not a confirmed appointment. Availability and timing need to be agreed separately.' : 'Submitting an enquiry does not create a tenancy, property listing or management agreement.'}</p>
+              <Link className="inline-block font-semibold text-teal-700 underline" href={owner ? '/owners/plans-pricing' : '/tenants/find-property'}>{owner ? 'Review management plans' : 'Explore rental properties'}</Link>
+            </div> : <form onSubmit={submit} aria-busy={pending}>
+              {error && <div ref={errorSummary} tabIndex={-1} role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
+              <fieldset disabled={pending} className="min-w-0">
+                <legend className="sr-only">Contact and {owner ? 'property' : 'rental'} details</legend>
+                <div className={p.formGrid}>
+                  {fields.map((field) => <div key={field.name} className={field.full ? p.fieldFull : undefined}>
+                    <label htmlFor={`inquiry-${field.name}`} className={`${p.fieldLabel} ${field.optional ? '' : p.required}`}>{field.label}</label>
+                    {field.options ? <select id={`inquiry-${field.name}`} name={field.name} required defaultValue={field.defaultValue ?? ''} className={p.fieldControl} aria-invalid={!!fieldErrors[field.name]} aria-describedby={fieldErrors[field.name] ? `error-${field.name}` : undefined}>
+                      <option value="" disabled>Select an option</option>
+                      {field.options.map((option) => <option key={option}>{option}</option>)}
+                    </select> : <input id={`inquiry-${field.name}`} name={field.name} type={field.type ?? 'text'} required={!field.optional} placeholder={field.placeholder} autoComplete={field.autoComplete ?? 'off'} defaultValue={field.defaultValue} maxLength={field.maxLength ?? 150} min={field.type === 'date' ? localDate() : field.type === 'number' ? 1 : undefined} max={field.type === 'number' ? 99999999 : undefined} step={field.type === 'number' ? 1 : undefined} className={p.fieldControl} aria-invalid={!!fieldErrors[field.name]} aria-describedby={fieldErrors[field.name] ? `error-${field.name}` : undefined} />}
+                    {fieldErrors[field.name] && <p id={`error-${field.name}`} className={p.fieldError}>{fieldErrors[field.name]}</p>}
+                  </div>)}
+                  <div className={p.fieldFull}>
+                    <label htmlFor="inquiry-requirements" className={p.fieldLabel}>Additional requirements (optional)</label>
+                    <textarea id="inquiry-requirements" name="requirements" rows={4} maxLength={2000} onChange={(event) => setCount(event.target.value.length)} placeholder="Share any specific requirements or information (optional)" className={p.fieldControl} aria-invalid={!!fieldErrors.requirements} aria-describedby="requirements-help requirements-error" />
+                    <p id="requirements-help" className={p.counter}>{count}/2000 · Do not include identity documents, bank details or other sensitive information.</p>
+                    <p id="requirements-error" className={p.fieldError}>{fieldErrors.requirements}</p>
+                  </div>
+                  <div className={p.fieldFull}>
+                    <label className={p.consent}><input type="checkbox" name="consent" required aria-describedby="consent-error" />I agree that Cypress may use these details to respond to this enquiry by phone or email where provided. This is not a booking or a service agreement.</label>
+                    <p id="consent-error" className={p.fieldError}>{fieldErrors.consent}</p>
+                  </div>
+                  <div className={p.fieldFull}>
+                    <button type="submit" className={p.submit}>{pending ? 'Submitting…' : error ? 'Retry submission' : owner ? 'Submit Property Enquiry' : visit ? 'Submit Visit Request' : 'Submit Rental Requirement'}{!pending && <ArrowRight size={18} aria-hidden="true" />}</button>
+                  </div>
+                </div>
+              </fieldset>
+            </form>}
+            <p className={p.notice}>{owner ? 'Your preferred plan is an expression of interest. Coverage and any agreement are confirmed separately.' : 'Property availability, viewings and move-in arrangements must be confirmed separately.'} <Link href={owner ? '/owners/faqs' : '/tenants/faqs'}>Read {owner ? 'owner' : 'tenant'} FAQs</Link> · <Link href="/contact">Contact and support</Link></p>
+          </section>
+          {owner && <aside className={p.sideSteps} aria-label="What happens next"><ol>{nextSteps.map(({ title, text, Icon }) => <li key={title}><div className={p.cardIcon}><Icon size={18} aria-hidden="true" /></div><strong>{title}</strong>{text}</li>)}</ol></aside>}
+        </div>
       </div>
     </div>
   </div>;

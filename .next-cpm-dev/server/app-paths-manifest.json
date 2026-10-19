@@ -1,0 +1,10 @@
+{
+  "/page": "app/page.js",
+  "/(public)/owners/plans-pricing/page": "app/(public)/owners/plans-pricing/page.js",
+  "/(public)/tenants/find-property/page": "app/(public)/tenants/find-property/page.js",
+  "/(public)/about/service-partners/page": "app/(public)/about/service-partners/page.js",
+  "/(public)/about/application/page": "app/(public)/about/application/page.js",
+  "/(public)/contact/page": "app/(public)/contact/page.js",
+  "/(public)/owner-inquiry/page": "app/(public)/owner-inquiry/page.js",
+  "/(public)/tenant-inquiry/page": "app/(public)/tenant-inquiry/page.js"
+}
