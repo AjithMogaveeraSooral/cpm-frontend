@@ -21,9 +21,9 @@
 ## Parent integration and intentionally incomplete scope
 
 - `/owner-inquiry`, `/tenant-inquiry` and `/tenants/find-property` are integrated and exercised by isolated browser smoke tests. Public lead persistence, rather than browser-local success, drives inquiry confirmation.
-- No edits to explore, public property detail, shared data stores/types, packages or application portal files.
+- The initial marketing component batch did not edit marketplace or shared data-store behavior. Parent integration and the subsequent branding update also touch application portal files.
 - Login now accepts allowlisted role preselection; `/owner-login` and `/tenant-login` entry pages link to the corresponding portal selection. Authentication still checks actual approved roles.
-- Approved founder portrait and supplied final logo/hero artwork remain pending. Text-based Cypress branding retains the existing building motif; no stock portrait or unrelated property photo has been substituted.
+- The branding follow-up integrates the supplied logo and portrait, including founder-story, login and portal branding. Hero/NRI illustrations are cropped from the supplied design board; higher-resolution originals remain desirable. Asset provenance is documented in `web/public/brand/README.md`.
 - Cross-site property/FAQ search is integrated at `/search`. Production analytics, approved legal policies and comprehensive accessibility auditing remain pending. No invented binding legal policies are published. Approved privacy/terms/cancellation content is a launch gate before accepting payments, deposits or sensitive verification documents.
 - Application/service descriptions explicitly qualify release-dependent workflows and selected-plan coverage. They are not certifications that every described digital action is live.
 
@@ -31,4 +31,4 @@
 
 - All **10 marketing regression tests passed** using the Node test runner (`node --test src/components/marketing/marketing.test.mjs`). The tests use existing TypeScript only to load TS modules: configuration, canonical/contact gates, contextual WhatsApp, pricing calculations, sitemap/robots, actual route collisions and marketing root behavior. No new dependencies were added.
 - Full `npm run typecheck` passes after the portal role-type integration fix.
-- Five Chromium browser tests pass against an isolated API fixture, including 390px navigation, listing detail/SEO, inquiry acceptance/failure and unavailable property behavior. These do not constitute a live database/S3 end-to-end test or a full visual/accessibility audit.
+- Seven Chromium browser tests pass against an isolated API fixture, including branding/image loading, FAQ keyboard operation, 320–1280px overflow, navigation, listing detail/SEO, inquiry acceptance/failure and unavailable property behavior. Desktop and mobile landing screenshots were also inspected. These do not constitute a live database/S3 end-to-end test or a full accessibility audit.
