@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { ArrowRight, Building2, ClipboardCheck, FileText, KeyRound, Wallet, Wrench } from 'lucide-react';
-import { plans, services, type FAQ } from '@/lib/site-content';
+import { ArrowRight, Building2, ClipboardCheck, FileText, House, KeyRound, Tag, Trees, Users, Wallet, Wrench } from 'lucide-react';
+import { plans, services, serviceOfferings, type FAQ } from '@/lib/site-content';
 import s from './marketing.module.css';
 
 export { default as marketingStyles } from './marketing.module.css';
@@ -23,6 +23,21 @@ export function Services() {
   return <div className={s.grid}>{services.map((service, index) => {
     const Icon = serviceIcons[index];
     return <article className={s.card} key={service.title}><div className={s.cardIcon}><Icon size={22} aria-hidden="true" /></div><h3>{service.title}</h3><p>{service.text}</p></article>;
+  })}</div>;
+}
+
+const offeringIcons = { Building2, Users, House, Trees, Tag } as const;
+
+export function ServiceOfferings() {
+  return <div className={s.grid}>{serviceOfferings.map((offering) => {
+    const Icon = offeringIcons[offering.icon as keyof typeof offeringIcons] ?? Building2;
+    return <article className={s.card} key={offering.title}>
+      <div className={s.cardIcon}><Icon size={22} aria-hidden="true" /></div>
+      <span className={s.eyebrow}>{offering.audience}</span>
+      <h3>{offering.title}</h3>
+      <p>{offering.text}</p>
+      <div className="mt-6"><Link href={offering.href} className={s.textLink}>{offering.cta}<ArrowRight size={16} aria-hidden="true" /></Link></div>
+    </article>;
   })}</div>;
 }
 

@@ -27,6 +27,54 @@ export const services = [
   { title: 'Connected Platform', text: 'Convenient owner and tenant access to property information, subject to available application features.' },
 ] as const;
 
+// serviceOfferings are the distinct ways Cypress can help an owner or landlord.
+// Each is a separate engagement — pick the one that matches the property's
+// situation. "icon" maps to a lucide-react icon in the marketing Services UI.
+export type ServiceOffering = { title: string; audience: string; text: string; icon: string; href: string; cta: string };
+
+export const serviceOfferings: ServiceOffering[] = [
+  {
+    title: 'End-to-End Property Management',
+    audience: 'For owners renting out their home',
+    text: 'The complete rental lifecycle — onboarding, tenant placement, rent tracking, maintenance coordination, inspections, renewals and move-out — available on our Bronze, Silver and Gold plans.',
+    icon: 'Building2',
+    href: '/owners/plans-pricing',
+    cta: 'Compare Bronze, Silver & Gold',
+  },
+  {
+    title: 'Existing Tenant Management',
+    audience: 'For owners who already have a tenant',
+    text: 'Already have a tenant but want us to handle the day-to-day? Cypress takes over rent follow-ups, maintenance, inspections and renewals without disturbing your current tenancy.',
+    icon: 'Users',
+    href: '/owner-inquiry',
+    cta: 'Hand Over Coordination',
+  },
+  {
+    title: 'Vacant Home Care',
+    audience: 'For homes that are not currently rented',
+    text: 'Keep an unoccupied home secure and well-kept with scheduled inspections, cleaning and upkeep coordination, along with documented condition reports.',
+    icon: 'House',
+    href: '/owner-inquiry',
+    cta: 'Protect My Home',
+  },
+  {
+    title: 'Vacant Plot Care',
+    audience: 'For landowners',
+    text: 'Periodic site inspections, cleaning and encroachment-risk reporting so your plot stays monitored and protected, with photo-documented visit updates.',
+    icon: 'Trees',
+    href: '/owner-inquiry',
+    cta: 'Safeguard My Plot',
+  },
+  {
+    title: 'Property Sales Listing & Assistance',
+    audience: 'For owners looking to sell',
+    text: 'Want to sell your flat? We help market the property, coordinate enquiries and viewings, and assist you through the sale process.',
+    icon: 'Tag',
+    href: '/owner-inquiry',
+    cta: 'List My Property for Sale',
+  },
+];
+
 export const plans = [
   { name: 'Bronze', rate: '5%', subtitle: 'Essential Management', manager: 'Shared manager', visits: 'Up to 2', reports: 'Photos', response: '72 hours', coverage: 'Owner-funded', fee: '₹1,500', balance: '₹28,500', description: 'Cypress coordinates repairs and service professionals. Labour, spare parts and materials are paid by the owner.' },
   { name: 'Silver', rate: '10%', subtitle: 'Enhanced Property Care', manager: 'Dedicated manager', visits: 'Up to 4', reports: 'Photos', response: '48 hours', coverage: 'Selectable options', fee: '₹3,000', balance: '₹27,000', description: 'Choose between Labour Only, Materials Only or Labour + Materials Coordination, subject to the selected coverage terms.' },
