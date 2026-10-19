@@ -11,7 +11,7 @@ import { formatINR, formatDate } from '@/lib/utils';
 import type { Property } from '@/lib/types';
 
 export default function PropertiesPage() {
-  const { user } = useAuth();
+  const { user, status: authStatus } = useAuth();
   const {
     currentRole,
     properties,
@@ -23,22 +23,30 @@ export default function PropertiesPage() {
   } = useDataStore();
   const [filterOccupancy, setFilterOccupancy] = useState<string>('all');
   const [filterCity, setFilterCity] = useState<string>('all');
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Properties are sourced from the database on mount.
   useEffect(() => {
     loadPropertiesFromApi();
   }, [loadPropertiesFromApi]);
 
-  // Rent payments (durable in IndexedDB) power the per-property rent payment date.
+  // Payment dates come only from the authenticated server list.
   useEffect(() => {
-    loadRentPayments();
-  }, [loadRentPayments]);
+    let active = true;
+    setPaymentError(null);
+    if (authStatus === 'authenticated') {
+      void loadRentPayments().catch((error) => {
+        if (active) setPaymentError(error instanceof Error ? error.message : 'Unable to load payments.');
+      });
+    }
+    return () => { active = false; };
+  }, [loadRentPayments, user?.id, authStatus]);
 
   // latestRentPaymentFor returns the most recent rent payment for a property, so
   // admins/owners can see when rent was last paid at a glance.
   const latestRentPaymentFor = (propertyId: string) =>
     rentPayments
-      .filter((p) => p.property_id === propertyId && p.status !== 'rejected')
+      .filter((p) => p.property_id === propertyId && p.status === 'verified')
       .sort((a, b) => (a.payment_date < b.payment_date ? 1 : -1))[0];
 
   const isAdmin = currentRole === 'cypress_admin';
@@ -78,6 +86,7 @@ export default function PropertiesPage() {
 
   return (
     <div>
+      {paymentError && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{paymentError}</p>}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">

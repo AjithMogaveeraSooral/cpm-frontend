@@ -24,7 +24,7 @@ export function RentReceiptGenerator({ isOpen, onClose, preselectedPropertyId }:
   const [paymentMode, setPaymentMode] = useState<RentReceipt['payment_mode']>('UPI');
   const [txnId, setTxnId] = useState(`UPI-${Date.now().toString().slice(-8)}`);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [notes, setNotes] = useState('Official rent receipt for HRA tax benefit proof.');
+  const [notes, setNotes] = useState('Locally prepared rent record. Payment verification and tax eligibility are not established.');
   const [createdReceipt, setCreatedReceipt] = useState<RentReceipt | null>(null);
 
   if (!isOpen) return null;
@@ -56,10 +56,10 @@ export function RentReceiptGenerator({ isOpen, onClose, preselectedPropertyId }:
       property_upid: prop.upid,
       property_address: prop.address || `${prop.flat_no}, ${prop.apartment_name}, Bengaluru`,
       owner_id: prop.owner_id,
-      owner_name: prop.owner_name || 'Ramesh Kumar',
-      owner_pan: prop.owner_pan || 'ABCDE1234F',
-      tenant_id: prop.active_tenant_id || 'user-tenant-1',
-      tenant_name: prop.active_tenant_name || 'Rahul Sharma',
+      owner_name: prop.owner_name || 'Not provided',
+      owner_pan: prop.owner_pan || '',
+      tenant_id: prop.active_tenant_id || '',
+      tenant_name: prop.active_tenant_name || 'Not provided',
       month_year: monthYear,
       rent_amount: actualRent,
       maintenance_amount: actualMaint,
@@ -86,10 +86,10 @@ export function RentReceiptGenerator({ isOpen, onClose, preselectedPropertyId }:
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                {createdReceipt ? 'Official Rent Receipt Generated' : 'Rent Receipt Generator'}
+                {createdReceipt ? 'Rent Record Prepared' : 'Rent Record Generator'}
               </h2>
               <p className="text-xs text-slate-500">
-                {createdReceipt ? 'HRA Tax-Compliant Printable Receipt' : 'Post-Onboarding & Tie-up Rent Receipt Desk'}
+                Payment verification and tax eligibility are not established by this local record.
               </p>
             </div>
           </div>
@@ -230,7 +230,7 @@ export function RentReceiptGenerator({ isOpen, onClose, preselectedPropertyId }:
                   Cancel
                 </Button>
                 <Button type="submit">
-                  <Receipt className="h-4 w-4" /> Generate Official Receipt
+                  <Receipt className="h-4 w-4" /> Prepare Rent Record
                 </Button>
               </div>
             </form>
@@ -258,7 +258,7 @@ export function RentReceiptGenerator({ isOpen, onClose, preselectedPropertyId }:
                   </div>
                   <div className="text-right">
                     <span className="inline-block rounded border border-cypress-300 bg-cypress-50 px-2 py-0.5 text-[11px] font-bold text-cypress-800 uppercase">
-                      HRA Tax Exemption Receipt
+                      Rent Record — Tax Eligibility Not Verified
                     </span>
                     <p className="mt-1 font-mono text-xs font-bold text-slate-900">{createdReceipt.receipt_no}</p>
                     <p className="text-[10px] text-slate-400">Date: {createdReceipt.payment_date}</p>
@@ -322,7 +322,7 @@ export function RentReceiptGenerator({ isOpen, onClose, preselectedPropertyId }:
                     <div className="text-right">
                       <div className="inline-flex items-center gap-1 rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                         <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                        Verified by Cypress Admin
+                        Payment verification not established
                       </div>
                       <p className="text-[10px] text-slate-400 mt-1">Digitally Signed & Archived</p>
                     </div>

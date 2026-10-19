@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,12 +17,16 @@ import {
   Bell,
   UserRound,
   KeyRound,
+  FolderLock,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { useDataStore } from '@/lib/data-store';
 import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { NotificationBell } from '@/components/notification-bell';
+import { BrandLogo } from '@/components/brand-logo';
 import type { Role } from '@/lib/types';
 
 interface NavItem {
@@ -37,6 +41,7 @@ const nav: NavItem[] = [
   { href: '/properties', label: 'Properties', icon: Building2 },
   { href: '/tickets', label: 'Maintenance Tickets', icon: LifeBuoy },
   { href: '/invoices', label: 'Rent Receipts & Ledger', icon: Receipt },
+  { href: '/documents', label: 'Document Vault', icon: FolderLock },
   { href: '/tenancies', label: 'Tenancies', icon: Users, roles: ['cypress_admin', 'app_admin', 'owner'] },
   { href: '/leads', label: 'Enquiries & Leads', icon: Inbox, roles: ['cypress_admin', 'app_admin'] },
   { href: '/tenants', label: 'Tenant Directory', icon: UserRound, roles: ['cypress_admin', 'app_admin'] },
@@ -51,6 +56,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { status, user, hydrate, logout } = useAuth();
   const { currentRole, properties, tickets, leads, renewalAlerts } = useDataStore();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   useEffect(() => {
     if (status === 'idle') {
@@ -66,7 +74,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const userRoles = user?.roles ?? [];
   // Default portal by privilege when no valid selection is persisted.
-  const fallbackRole: Role =
+  const fallbackRole: 'cypress_admin' | 'owner' | 'tenant' =
     userRoles.includes('cypress_admin') || userRoles.includes('app_admin')
       ? 'cypress_admin'
       : userRoles.includes('owner')
@@ -74,7 +82,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       : 'tenant';
   // Honor the portal selected at login (persisted as currentRole) as long as
   // the account actually holds that role; otherwise fall back to the default.
-  const activeRole: Role = userRoles.includes(currentRole as Role) ? (currentRole as Role) : fallbackRole;
+  const activeRole = userRoles.includes(currentRole) ? currentRole : fallbackRole;
 
   useEffect(() => {
     if (user && activeRole !== currentRole) {
@@ -91,6 +99,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!item.roles) return true;
     return item.roles.includes(activeRole);
   });
+
+  const routeRule = nav.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const routeAllowed = !routeRule?.roles || routeRule.roles.includes(activeRole);
+
+  useEffect(() => {
+    if (status === 'authenticated' && user && userRoles.length === 0) router.replace('/pending');
+    else if (status === 'authenticated' && !routeAllowed) router.replace('/dashboard');
+  }, [status, user, userRoles.length, routeAllowed, router]);
 
   const openTicketsCount = tickets.filter((t) => t.status !== 'closed').length;
   const newLeadsCount = leads.filter((l) => l.status === 'new').length;
@@ -122,27 +138,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (status === 'unauthenticated' || !user) {
+  if (status === 'unauthenticated' || !user || userRoles.length === 0 || !routeAllowed) {
     return null;
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b bg-white px-4 py-3 lg:hidden">
+        <Link href="/" aria-label="Cypress Property Management home"><BrandLogo className="h-auto w-[180px]" /></Link>
+        <button type="button" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="portal-navigation" onClick={() => setMenuOpen(!menuOpen)} className="rounded-lg border p-2">
+          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </header>
       <div className="flex flex-1">
         {/* Sidebar */}
-        <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-slate-200/80 bg-white/80 backdrop-blur-xl">
+        <aside id="portal-navigation" className={cn('fixed inset-x-0 top-16 bottom-0 z-30 w-full flex-col border-r border-slate-200/80 bg-white lg:sticky lg:top-0 lg:z-auto lg:flex lg:h-screen lg:w-64 lg:shrink-0', menuOpen ? 'flex' : 'hidden')}>
           {/* Brand */}
           <div className="flex items-center justify-between px-5 py-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cypress-gradient shadow-glow-sm">
-                <Building2 className="h-5 w-5 text-white" />
-              </div>
-              <div className="leading-tight">
-                <div className="text-base font-bold text-gradient">Cypress PM</div>
-                <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                  {roleLabel}
-                </div>
-              </div>
+            <div className="min-w-0">
+              <Link href="/" aria-label="Cypress Property Management home"><BrandLogo className="h-auto w-[145px] max-w-full" /></Link>
+              <div className="mt-2 text-[10px] font-medium uppercase tracking-wider text-slate-500">{roleLabel}</div>
             </div>
             <div className="flex items-center gap-1">
               <NotificationBell />
@@ -214,9 +229,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main Content Area */}
-        <main className="relative flex-1 overflow-y-auto">
+        <main className="relative min-w-0 flex-1 overflow-x-hidden">
           <div className="pointer-events-none fixed inset-0 -z-10 bg-cypress-radial opacity-60" />
-          <div className="px-8 py-7">
+          <div className="px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
             <AnimatePresence mode="wait">
               <motion.div
                 key={pathname}

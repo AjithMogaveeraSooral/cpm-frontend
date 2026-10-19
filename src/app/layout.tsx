@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { Providers } from '@/components/providers';
 import './globals.css';
+import brandMark from '../../public/brand/cypress-mark.png';
 
 export const metadata: Metadata = {
   title: 'Cypress Property Management',
-  description: 'Property management console — properties, tenancies, rent, maintenance, and reporting.',
+  description: 'Transparent property management, tenant coordination, rent tracking and maintenance services in Bengaluru.',
+  icons: { icon: brandMark.src, apple: brandMark.src },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

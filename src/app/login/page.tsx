@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2 } from 'lucide-react';
+import { BrandLogo } from '@/components/brand-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-store';
@@ -30,10 +30,27 @@ type PasswordValues = z.infer<typeof passwordSchema>;
 type OtpValues = z.infer<typeof otpSchema>;
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<p role="status" className="p-8 text-center text-slate-600">Loading sign in…</p>}>
+      <LoginWithPortal />
+    </Suspense>
+  );
+}
+
+function LoginWithPortal() {
+  const params = useSearchParams();
+  const requestedRole = params.get('role');
+  const initialRole = requestedRole === 'owner' || requestedRole === 'cypress_admin' || requestedRole === 'tenant'
+    ? requestedRole : 'tenant';
+  return <LoginForm key={initialRole} initialRole={initialRole} />;
+}
+
+function LoginForm({ initialRole }: { initialRole: Role }) {
   const router = useRouter();
   const { loginWithPassword, requestOtp, verifyOtp } = useAuth();
   const [mode, setMode] = useState<Mode>('password');
-  const [role, setRole] = useState<Role>('tenant');
+  // A portal hint is not an authorization grant: both auth flows still enforce role access.
+  const [role, setRole] = useState<Role>(initialRole);
   const [serverError, setServerError] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState<{ mock: boolean; devCode?: string } | null>(null);
 
@@ -97,9 +114,7 @@ export default function LoginPage() {
       >
         <div className="card-premium p-7 sm:p-8">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-cypress-gradient shadow-glow">
-              <Building2 className="h-7 w-7 text-white" />
-            </div>
+            <Link href="/" className="mx-auto mb-5 block w-fit" aria-label="Cypress Property Management home"><BrandLogo priority /></Link>
             <h1 className="text-2xl font-bold text-gradient">Cypress Property Management</h1>
             <p className="mt-1 text-sm text-slate-500">Sign in to your console</p>
           </div>
@@ -111,6 +126,7 @@ export default function LoginPage() {
                 <button
                   key={t.value}
                   type="button"
+                  aria-pressed={role === t.value}
                   onClick={() => setRole(t.value)}
                   className={`rounded-xl border px-2 py-2.5 text-xs font-medium transition-all duration-200 active:scale-95 ${
                     role === t.value

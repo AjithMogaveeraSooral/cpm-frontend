@@ -18,17 +18,20 @@ export interface BankAccountDetails {
   upiId: string;
 }
 
-// Public payment details are configurable via env (they are not secrets), with
-// sensible defaults for local/demo use.
+// Publish only verified collection details. Never offer a fabricated beneficiary
+// or account when production configuration is missing.
 export const CYPRESS_BANK_ACCOUNT: BankAccountDetails = {
-  beneficiaryName: process.env.NEXT_PUBLIC_PAY_BENEFICIARY || 'Cypress Property Management Pvt Ltd',
-  accountNumber: process.env.NEXT_PUBLIC_PAY_ACCOUNT_NO || '007200011223344',
-  ifsc: process.env.NEXT_PUBLIC_PAY_IFSC || 'HDFC0000072',
-  bankName: process.env.NEXT_PUBLIC_PAY_BANK || 'HDFC Bank',
-  branch: process.env.NEXT_PUBLIC_PAY_BRANCH || 'Whitefield, Bengaluru',
-  accountType: process.env.NEXT_PUBLIC_PAY_ACCOUNT_TYPE || 'Current Account',
-  upiId: process.env.NEXT_PUBLIC_PAY_UPI || 'cypresspm@hdfcbank',
+  beneficiaryName: process.env.NEXT_PUBLIC_PAY_BENEFICIARY?.trim() || '',
+  accountNumber: process.env.NEXT_PUBLIC_PAY_ACCOUNT_NO?.trim() || '',
+  ifsc: process.env.NEXT_PUBLIC_PAY_IFSC?.trim().toUpperCase() || '',
+  bankName: process.env.NEXT_PUBLIC_PAY_BANK?.trim() || '',
+  branch: process.env.NEXT_PUBLIC_PAY_BRANCH?.trim() || '',
+  accountType: process.env.NEXT_PUBLIC_PAY_ACCOUNT_TYPE?.trim() || '',
+  upiId: process.env.NEXT_PUBLIC_PAY_UPI?.trim() || '',
 };
+
+export const BANK_TRANSFER_CONFIGURED = Boolean(CYPRESS_BANK_ACCOUNT.beneficiaryName && CYPRESS_BANK_ACCOUNT.bankName && /^\d{9,18}$/.test(CYPRESS_BANK_ACCOUNT.accountNumber) && /^[A-Z]{4}0[A-Z0-9]{6}$/.test(CYPRESS_BANK_ACCOUNT.ifsc));
+export const UPI_CONFIGURED = Boolean(CYPRESS_BANK_ACCOUNT.beneficiaryName && /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/.test(CYPRESS_BANK_ACCOUNT.upiId));
 
 // PaymentMethod enumerates the ways a tenant can settle rent. Offline methods
 // are live today; `online_gateway` is reserved for future integration.
@@ -117,10 +120,10 @@ const bankTransferProvider: PaymentProvider = {
   method: 'offline_bank_transfer',
   label: 'Bank Transfer (NEFT / IMPS / RTGS)',
   description: 'Transfer to the Cypress account below, then upload your receipt.',
-  enabled: true,
+  enabled: BANK_TRANSFER_CONFIGURED,
   getInstructions: (ctx) => ({
     kind: 'bank_transfer',
-    bank: CYPRESS_BANK_ACCOUNT,
+    bank: BANK_TRANSFER_CONFIGURED ? CYPRESS_BANK_ACCOUNT : undefined,
     reference: ctx.propertyUpid,
     amount: ctx.amount,
     note: `Quote your property UPID ${ctx.propertyUpid} in the transfer remarks so we can reconcile your ${ctx.period} rent.`,
@@ -131,16 +134,16 @@ const upiProvider: PaymentProvider = {
   method: 'upi',
   label: 'UPI (GPay / PhonePe / BHIM)',
   description: 'Pay to our UPI ID, then upload the payment screenshot.',
-  enabled: true,
+  enabled: UPI_CONFIGURED,
   getInstructions: (ctx) => ({
     kind: 'upi',
-    upiId: CYPRESS_BANK_ACCOUNT.upiId,
-    upiDeepLink: buildUpiDeepLink(
+    upiId: UPI_CONFIGURED ? CYPRESS_BANK_ACCOUNT.upiId : undefined,
+    upiDeepLink: UPI_CONFIGURED ? buildUpiDeepLink(
       CYPRESS_BANK_ACCOUNT.upiId,
       CYPRESS_BANK_ACCOUNT.beneficiaryName,
       ctx.amount,
       `${ctx.propertyUpid} ${ctx.period} rent`,
-    ),
+    ) : undefined,
     reference: ctx.propertyUpid,
     amount: ctx.amount,
     note: `Use property UPID ${ctx.propertyUpid} as the payment note.`,

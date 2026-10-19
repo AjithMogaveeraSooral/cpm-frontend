@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, FileText, Plus, Printer, Receipt, ShieldCheck, Sparkles, CheckCircle2, XCircle, Clock, Eye } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { useDataStore } from '@/lib/data-store';
@@ -17,13 +17,13 @@ function openReceipt(dataUrl?: string) {
   if (!dataUrl) return;
   try {
     const [meta, base64] = dataUrl.split(',');
-    const contentType = meta.match(/data:(.*?);base64/)?.[1] ?? 'application/octet-stream';
+    const contentType = meta.match(/^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64$/)?.[1];
+    if (!contentType || base64.length > 7 * 1024 * 1024) return;
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
     const url = URL.createObjectURL(new Blob([bytes], { type: contentType }));
-    const opened = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!opened) window.location.href = url;
+    window.open(url, '_blank', 'noopener,noreferrer');
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch {
     /* ignore malformed data URL */
@@ -31,13 +31,14 @@ function openReceipt(dataUrl?: string) {
 }
 
 export default function InvoicesPage() {
-  const { user } = useAuth();
+  const { user, status: authStatus } = useAuth();
   const {
     currentRole,
     receipts,
     rentHistory,
     properties,
     rentPayments,
+    rentPaymentsLoaded,
     loadRentPayments,
     updateRentPaymentStatus,
   } = useDataStore();
@@ -45,15 +46,24 @@ export default function InvoicesPage() {
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [viewReceipt, setViewReceipt] = useState<RentReceipt | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const decisionLock = useRef(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const isAdmin = currentRole === 'cypress_admin';
   const isOwner = currentRole === 'owner';
   const isTenant = currentRole === 'tenant';
 
-  // Rent payments are stored durably in IndexedDB; hydrate them on mount.
+  // Only the authenticated server list is authoritative.
   useEffect(() => {
-    loadRentPayments();
-  }, [loadRentPayments]);
+    let active = true;
+    setPaymentError(null);
+    if (authStatus === 'authenticated') {
+      void loadRentPayments().catch((error) => {
+        if (active) setPaymentError(error instanceof Error ? error.message : 'Unable to load payments.');
+      });
+    }
+    return () => { active = false; };
+  }, [loadRentPayments, user?.id, authStatus]);
 
   // Payments visible to the current user: admin sees all; owner sees payments
   // for properties they own; tenant sees their own submissions.
@@ -61,8 +71,7 @@ export default function InvoicesPage() {
     properties
       .filter(
         (p) =>
-          p.owner_id === user?.id ||
-          (user?.full_name && p.owner_name?.toLowerCase().includes(user.full_name.toLowerCase())),
+          p.owner_id === user?.id,
       )
       .map((p) => p.id),
   );
@@ -75,10 +84,16 @@ export default function InvoicesPage() {
   const pendingCount = visiblePayments.filter((p) => p.status === 'awaiting_verification').length;
 
   const handleDecision = async (payment: RentPayment, status: RentPayment['status']) => {
+    if (decisionLock.current) return;
+    decisionLock.current = true;
+    setPaymentError(null);
     setPendingAction(payment.id);
     try {
       await updateRentPaymentStatus(payment.id, status);
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : 'The decision was not confirmed. Reload payments.');
     } finally {
+      decisionLock.current = false;
       setPendingAction(null);
     }
   };
@@ -105,26 +120,30 @@ export default function InvoicesPage() {
 
   return (
     <div>
+      {paymentError && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{paymentError} <button className="underline" onClick={() => {
+        setPaymentError(null);
+        void loadRentPayments().catch((error) => setPaymentError(error instanceof Error ? error.message : 'Unable to load payments.'));
+      }}>Reload payments</button></p>}
       {/* Page Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
             Rent Receipts & Financial Ledger
             <span className="inline-flex items-center gap-1 rounded-full border border-cypress-200 bg-cypress-50 px-2.5 py-0.5 text-xs font-semibold text-cypress-700">
-              <ShieldCheck className="h-3.5 w-3.5 text-cypress-600" /> HRA & Society Tax Verified
+              <FileText className="h-3.5 w-3.5 text-cypress-600" /> Payment records
             </span>
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {isAdmin && 'Generate official rent receipts, track monthly association maintenance, and audit tenant payment records.'}
+            {isAdmin && 'Review server payment submissions and prepare local rent records. Receipt generation does not verify funds or tax eligibility.'}
             {isOwner && 'View monthly rent payouts, association maintenance records, advance security deposits, and receipts.'}
-            {isTenant && 'Download official rent receipts for HRA tax exemption proof and monitor maintenance dues.'}
+            {isTenant && 'View rent records and maintenance dues. Tax eligibility is not verified by this application.'}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           {isAdmin && (
             <Button onClick={() => setGeneratorOpen(true)}>
-              <Plus className="h-4 w-4" /> Generate Rent Receipt
+              <Plus className="h-4 w-4" /> Prepare Local Rent Record
             </Button>
           )}
         </div>
@@ -209,7 +228,7 @@ export default function InvoicesPage() {
                     <td className="px-4 py-3 font-medium text-slate-900">{r.month_year}</td>
                     <td className="px-4 py-3 text-slate-700">{r.tenant_name}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">
-                      {r.owner_name} <span className="font-mono text-[10px] text-slate-400">({r.owner_pan || 'PAN Verified'})</span>
+                      {r.owner_name} <span className="font-mono text-[10px] text-slate-400">({r.owner_pan || 'PAN not provided'})</span>
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-900">
                       {formatINR(r.rent_amount)}
@@ -284,7 +303,7 @@ export default function InvoicesPage() {
                       : p.status === 'rejected'
                         ? { cls: 'bg-red-100 text-red-700', Icon: XCircle, label: 'Rejected' }
                         : { cls: 'bg-amber-100 text-amber-800', Icon: Clock, label: 'Awaiting verification' };
-                  const busy = pendingAction === p.id;
+                  const busy = pendingAction !== null;
                   return (
                     <tr key={p.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
@@ -335,15 +354,7 @@ export default function InvoicesPage() {
                               </button>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center">
-                              <button
-                                disabled={busy}
-                                onClick={() => handleDecision(p, 'awaiting_verification')}
-                                className="text-xs font-semibold text-slate-400 hover:text-slate-600 disabled:opacity-60"
-                              >
-                                Reset
-                              </button>
-                            </div>
+                            <span className="text-xs text-slate-400">Final decision</span>
                           )}
                         </td>
                       )}
@@ -353,7 +364,7 @@ export default function InvoicesPage() {
               </tbody>
             </table>
           </div>
-          {visiblePayments.length === 0 && (
+          {visiblePayments.length === 0 && rentPaymentsLoaded && (
             <p className="px-4 py-10 text-center text-slate-400">
               {isAdmin ? 'No tenant payments submitted yet.' : 'You have not submitted any rent payments yet.'}
             </p>
@@ -366,11 +377,11 @@ export default function InvoicesPage() {
         <Card className="overflow-hidden p-0">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Prestige Falcon City (A-804) — Rent & Advance Ledger</h3>
-              <p className="text-xs text-slate-500">Security Deposit with Owner: ₹2,50,000 · Monthly Rent: ₹42,000</p>
+              <h3 className="text-sm font-bold text-slate-900">Rent & Advance Ledger</h3>
+              <p className="text-xs text-slate-500">Separate rent-cycle flow; offline payment approval does not reconcile this ledger.</p>
             </div>
             <span className="rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-bold">
-              Account Good Standing
+              Reconciliation not confirmed
             </span>
           </div>
 
@@ -503,7 +514,7 @@ export default function InvoicesPage() {
               <div className="flex justify-between border-b-2 border-slate-800 pb-3">
                 <div>
                   <h4 className="text-base font-extrabold text-slate-900 uppercase">Cypress Property Management</h4>
-                  <p className="text-[10px] text-slate-500">Official Rent Receipt for HRA Tax Proof</p>
+                  <p className="text-[10px] text-slate-500">Rent record — tax eligibility not verified</p>
                 </div>
                 <div className="text-right font-mono">
                   <span className="font-bold text-cypress-800">{viewReceipt.receipt_no}</span>
@@ -520,7 +531,7 @@ export default function InvoicesPage() {
                 <div>
                   <p className="text-[10px] font-bold uppercase text-slate-400">Landlord (PAN)</p>
                   <p className="font-bold text-sm text-slate-900">{viewReceipt.owner_name}</p>
-                  <p className="font-mono text-slate-600">PAN: {viewReceipt.owner_pan || 'ABCDE1234F'}</p>
+                  <p className="font-mono text-slate-600">PAN: {viewReceipt.owner_pan || 'Not provided'}</p>
                 </div>
               </div>
 
@@ -537,7 +548,7 @@ export default function InvoicesPage() {
 
               <div className="mt-3 flex justify-between text-[11px] text-slate-500">
                 <span>Mode: {viewReceipt.payment_mode} (Ref: {viewReceipt.transaction_id})</span>
-                <span className="font-bold text-emerald-700">✓ Verified by Cypress Admin</span>
+                <span className="text-slate-500">Verification not established by this receipt view</span>
               </div>
             </div>
 

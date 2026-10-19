@@ -1,0 +1,8 @@
+{
+  "/page": "app/page.js",
+  "/(public)/owners/plans-pricing/page": "app/(public)/owners/plans-pricing/page.js",
+  "/(public)/about/founder/page": "app/(public)/about/founder/page.js",
+  "/(public)/tenants/find-property/page": "app/(public)/tenants/find-property/page.js",
+  "/(public)/explore/[upid]/page": "app/(public)/explore/[upid]/page.js",
+  "/(public)/owner-inquiry/page": "app/(public)/owner-inquiry/page.js"
+}

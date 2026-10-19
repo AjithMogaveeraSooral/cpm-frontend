@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -36,13 +36,13 @@ function openReceipt(dataUrl?: string) {
   if (!dataUrl) return;
   try {
     const [meta, base64] = dataUrl.split(',');
-    const contentType = meta.match(/data:(.*?);base64/)?.[1] ?? 'application/octet-stream';
+    const contentType = meta.match(/^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64$/)?.[1];
+    if (!contentType || base64.length > 7 * 1024 * 1024) return;
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
     const url = URL.createObjectURL(new Blob([bytes], { type: contentType }));
-    const opened = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!opened) window.location.href = url;
+    window.open(url, '_blank', 'noopener,noreferrer');
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch {
     /* ignore malformed data URL */
@@ -50,7 +50,7 @@ function openReceipt(dataUrl?: string) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, status: authStatus } = useAuth();
   const {
     currentRole,
     properties,
@@ -65,6 +65,8 @@ export default function DashboardPage() {
   } = useDataStore();
   const [payRentOpen, setPayRentOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const decisionLock = useRef(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Resolve the effective role from the account's actual roles, falling back to
   // the persisted portal selection. This guarantees tenant content (incl. Pay
@@ -90,10 +92,18 @@ export default function DashboardPage() {
     loadPropertiesFromApi();
   }, [loadPropertiesFromApi]);
 
-  // Rent payments are stored durably in IndexedDB; hydrate them on mount.
+  // Load only the authenticated server list; no browser-storage fallback.
   useEffect(() => {
-    loadRentPayments();
-  }, [loadRentPayments]);
+    let active = true;
+    setPaymentError(null);
+    setPayRentOpen(false);
+    if (authStatus === 'authenticated') {
+      void loadRentPayments().catch((error) => {
+        if (active) setPaymentError(error instanceof Error ? error.message : 'Unable to load payments.');
+      });
+    }
+    return () => { active = false; };
+  }, [loadRentPayments, user?.id, authStatus]);
 
   // Resolve the property the logged-in tenant is connected to.
   const tenantProperty = isTenant
@@ -110,7 +120,7 @@ export default function DashboardPage() {
 
   // This tenant's rent payments (newest first), for the dashboard history.
   const myPayments = isTenant
-    ? rentPayments.filter((p) => p.tenant_id === user?.id || (tenantProperty && p.property_id === tenantProperty.id))
+    ? rentPayments.filter((p) => p.tenant_id === user?.id)
     : [];
 
   // Rent-cycle status for the current month.
@@ -137,16 +147,26 @@ export default function DashboardPage() {
     : [];
 
   const handleDecision = async (paymentId: string, status: 'verified' | 'rejected') => {
+    if (decisionLock.current) return;
+    decisionLock.current = true;
+    setPaymentError(null);
     setPendingAction(paymentId);
     try {
       await updateRentPaymentStatus(paymentId, status);
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : 'The decision was not confirmed. Reload payments.');
     } finally {
+      decisionLock.current = false;
       setPendingAction(null);
     }
   };
 
   return (
     <div>
+      {paymentError && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{paymentError} <button className="underline" onClick={() => {
+        setPaymentError(null);
+        void loadRentPayments().catch((error) => setPaymentError(error instanceof Error ? error.message : 'Unable to load payments.'));
+      }}>Reload payments</button></p>}
       {/* Header */}
       <div className="mb-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -273,7 +293,7 @@ export default function DashboardPage() {
           ) : (
             <ul className="divide-y divide-slate-100">
               {adminPendingPayments.slice(0, 6).map((p) => {
-                const busy = pendingAction === p.id;
+                const busy = pendingAction !== null;
                 return (
                   <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
                     <div className="min-w-0">
@@ -383,7 +403,7 @@ export default function DashboardPage() {
                 !tenantProperty
                   ? 'No active lease'
                   : paidThisPeriod
-                    ? `Paid for ${period}`
+                    ? `Submitted for ${period}; see review status`
                     : `${dueInfo.label} · due ${formatDate(dueInfo.dueDate.toISOString())}`
               }
               icon={Receipt}
@@ -403,7 +423,7 @@ export default function DashboardPage() {
             <StatCard
               label="Verified Receipts"
               value={receipts.length}
-              hint="HRA Tax Exemption ready"
+              hint="Tax eligibility not verified"
               icon={CheckCircle2}
               accent="gold"
             />
@@ -435,7 +455,7 @@ export default function DashboardPage() {
             {/* Days-left / due status */}
             {paidThisPeriod ? (
               <div className="mb-4 flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 text-[11px] font-bold text-emerald-800">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Paid for {period}
+                <CheckCircle2 className="h-3.5 w-3.5" /> Payment submitted for {period} — see review status below
               </div>
             ) : (
               <div
@@ -539,7 +559,7 @@ export default function DashboardPage() {
               <h3 className="font-bold text-slate-900 text-sm">Rent Receipts & Ledger</h3>
             </div>
             <p className="text-xs text-slate-500">
-              {isAdmin ? 'Generate HRA-compliant rent receipts and audit maintenance payments.' : 'View rent history, advance deposits, and download official receipts.'}
+              {isAdmin ? 'Review rent records and maintenance payments. Tax eligibility is not verified.' : 'View rent history, advance deposits, and recorded receipts.'}
             </p>
           </div>
         </Link>

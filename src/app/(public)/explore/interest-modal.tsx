@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, X } from 'lucide-react';
 import { api, ApiError } from '@/lib/api-client';
@@ -27,6 +27,16 @@ export function InterestModal({ open, onClose, propertyUpid, propertyLabel }: In
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const dialog = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialog.current?.focus();
+    return () => { document.body.style.overflow = overflow; previous?.focus(); };
+  }, [open]);
 
   function reset() {
     setName('');
@@ -46,6 +56,7 @@ export function InterestModal({ open, onClose, propertyUpid, propertyLabel }: In
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     const next: Record<string, string> = {};
     if (!name.trim()) next.name = 'Please enter your name';
     if (!PHONE_RE.test(phone.trim())) next.phone = 'Enter a valid 10-digit mobile number';
@@ -53,7 +64,8 @@ export function InterestModal({ open, onClose, propertyUpid, propertyLabel }: In
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    const body: CreateLeadInput = {
+    const body: CreateLeadInput & { type: 'tenant' } = {
+      type: 'tenant',
       name: name.trim(),
       phone: phone.trim(),
       ...(email.trim() ? { email: email.trim() } : {}),
@@ -84,6 +96,21 @@ export function InterestModal({ open, onClose, propertyUpid, propertyLabel }: In
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={handleClose} />
 
           <motion.div
+            ref={dialog}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Express interest in this property"
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') { event.preventDefault(); handleClose(); }
+              if (event.key !== 'Tab') return;
+              const elements = dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), a[href]');
+              if (!elements?.length) { event.preventDefault(); return; }
+              const first = elements[0];
+              const last = elements[elements.length - 1];
+              if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last.focus(); }
+              else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }}
             className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-elevated"
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -105,7 +132,7 @@ export function InterestModal({ open, onClose, propertyUpid, propertyLabel }: In
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900">Thanks for your interest!</h3>
                 <p className="mt-2 text-sm text-slate-600">
-                  Our team has been notified and will reach out to you shortly.
+                  Your enquiry has been received. Cypress will review it and contact you about the next steps.
                 </p>
                 <Button className="mt-6 w-full" onClick={handleClose}>
                   Done

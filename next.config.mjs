@@ -11,6 +11,8 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? (isPages ? `/${repositoryN
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Browser tests must not overwrite the active development server's cache.
+  distDir: process.env.NEXT_BUILD_DIR || '.next',
   ...(isPages
     ? {
         output: 'export',

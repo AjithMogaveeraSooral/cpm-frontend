@@ -20,10 +20,45 @@ import type {
   UserSummary,
 } from './types';
 import { useAuth } from './auth-store';
-import { api } from './api-client';
+import { api, ApiError } from './api-client';
 import { idbLoadAllAttachments, idbSaveAttachment } from './media-idb';
 import type { RentPayment } from './payment';
-import { idbLoadRentPayments, idbSaveRentPayment } from './payments-idb';
+
+// Payment state is session-bound and never hydrated from browser storage.
+let paymentSession = 0;
+let paymentLoad = 0;
+const paymentMutations = new Set<string>();
+
+function requirePaymentSession(): number {
+  const auth = useAuth.getState();
+  if (auth.status !== 'authenticated' || !auth.user) throw new Error('Sign in to access rent payments.');
+  return paymentSession;
+}
+
+function assertPaymentSession(session: number): void {
+  if (session !== paymentSession || useAuth.getState().status !== 'authenticated') {
+    throw new Error('Your account session changed. Reload payments before continuing.');
+  }
+}
+
+function paymentFailure(error: unknown, action: string): Error {
+  if (error instanceof ApiError) {
+    if (error.status === 401 || error.status >= 500 || error.status === 409) {
+      return new ApiError(error.status, error.code,
+        `${error.message} ${error.status === 401 ? 'Sign in again.' : 'Reload payments before retrying; do not repeat the bank transfer.'}`, error.details);
+    }
+    return error;
+  }
+  return new Error(`${action} could not be confirmed. ${error instanceof Error ? error.message : 'Network unavailable.'} Reconnect and reload payments before retrying; do not repeat the bank transfer.`);
+}
+
+function serverPayment(data: ApiRentPayment): RentPayment {
+  if (!data || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(data.id) ||
+      !['awaiting_verification', 'verified', 'rejected'].includes(data.status)) {
+    throw new Error('The server returned an invalid payment record.');
+  }
+  return mapApiRentPayment(data);
+}
 
 export const CITIES_MASTER: CityOption[] = [
   {
@@ -225,9 +260,8 @@ function mapApiRentPayment(p: ApiRentPayment): RentPayment {
 // a freshly loaded property list. Owner/tenant assignments are managed on the
 // client and are NOT part of the backend /properties payload, so without this
 // merge a connection would disappear on every page refresh (which reloads
-// properties from the API). It also injects any assigned property the API did
-// not return — e.g. a tenant whose backend listing is owner-scoped and therefore
-// excludes their rented unit.
+// properties from the API). Local snapshots must never inject a property that
+// the authenticated server response did not authorize.
 function overlayAssignments(
   list: Property[],
   assignments: Record<string, Property>,
@@ -256,9 +290,7 @@ function overlayAssignments(
       is_listed: snap.is_listed ?? p.is_listed,
     };
   });
-  const presentIds = new Set(list.map((p) => p.id));
-  const injected = Object.values(assignments).filter((s) => !presentIds.has(s.id));
-  return [...applied, ...injected];
+  return applied;
 }
 
 // StoredMediaAsset is a user-uploaded photo/video kept locally as a base64 data
@@ -295,8 +327,7 @@ interface DataStoreState {
   registeredUsers: DirectoryUser[];
   propertyAttachments: Record<string, PropertyAttachmentBucket>;
   attachmentsLoaded: boolean;
-  // Tenant-submitted rent payments (offline transfer + uploaded receipt),
-  // stored durably in IndexedDB. Loaded via loadRentPayments().
+  // Server-authoritative offline transfer submissions; never locally persisted.
   rentPayments: RentPayment[];
   rentPaymentsLoaded: boolean;
   // Persisted owner/tenant connection snapshots keyed by property id. These
@@ -879,30 +910,37 @@ export const useDataStore = create<DataStoreState>()(
       },
 
       loadRentPayments: async () => {
-        // Source of truth is the backend so an admin on any device sees tenant
-        // submissions. IndexedDB is a local cache/offline fallback.
-        const byId = new Map<string, RentPayment>();
+        const request = ++paymentLoad;
+        const session = paymentSession;
+        set({ rentPayments: [], rentPaymentsLoaded: false });
         try {
-          const res = await api.get<ApiRentPayment[]>('/rent/payments', {
-            query: { page: 1, page_size: 200 },
-          });
-          (res.data ?? []).map(mapApiRentPayment).forEach((p) => byId.set(p.id, p));
-          // Cache backend records locally for offline viewing.
-          for (const p of byId.values()) idbSaveRentPayment(p).catch(() => {});
-        } catch {
-          // Backend unreachable: fall back to whatever is cached locally.
-          const stored = await idbLoadRentPayments();
-          stored.forEach((p) => byId.set(p.id, p));
+          requirePaymentSession();
+          const payments: RentPayment[] = [];
+          let page = 1;
+          let pages = 1;
+          do {
+            const res = await api.get<ApiRentPayment[]>('/rent/payments', { query: { page, page_size: 100 } });
+            assertPaymentSession(session);
+            if (request !== paymentLoad) return;
+            if (res.data !== null && !Array.isArray(res.data)) throw new Error('Invalid payment list response.');
+            payments.push(...(res.data ?? []).map(serverPayment));
+            pages = res.pagination?.total_pages ?? 1;
+            page += 1;
+          } while (page <= pages);
+          set({ rentPayments: payments, rentPaymentsLoaded: true });
+        } catch (error) {
+          if (session === paymentSession && request === paymentLoad) {
+            set({ rentPayments: [], rentPaymentsLoaded: false });
+          }
+          throw paymentFailure(error, 'Loading payments');
         }
-        // Merge any records still only present locally (e.g. offline submissions).
-        [...get().rentPayments].forEach((p) => {
-          if (!byId.has(p.id)) byId.set(p.id, p);
-        });
-        const merged = Array.from(byId.values()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-        set({ rentPayments: merged, rentPaymentsLoaded: true });
       },
 
       submitRentPayment: async (input) => {
+        const session = requirePaymentSession();
+        const key = `${session}:submit`;
+        if (paymentMutations.has(key)) throw new Error('A payment submission is already in progress.');
+        paymentMutations.add(key);
         try {
           // Persist server-side so the Cypress admin can approve it from any
           // device. The backend derives tenant_id from the auth token.
@@ -922,39 +960,41 @@ export const useDataStore = create<DataStoreState>()(
             receipt_size_kb: input.receipt_size_kb,
             paid_to: input.paid_to,
           });
-          const payment = mapApiRentPayment(res.data);
-          await idbSaveRentPayment(payment).catch(() => {});
+          assertPaymentSession(session);
+          const payment = serverPayment(res.data);
+          if (payment.status !== 'awaiting_verification') throw new Error('Unexpected submission status.');
+          ++paymentLoad; // Older list responses cannot overwrite this mutation.
           set({ rentPayments: [payment, ...get().rentPayments] });
           return payment;
-        } catch {
-          // Offline / backend down: record locally so the tenant isn't blocked.
-          // It will remain visible on this device until connectivity returns.
-          const payment: RentPayment = {
-            ...input,
-            id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            status: 'awaiting_verification',
-            created_at: new Date().toISOString(),
-          };
-          await idbSaveRentPayment(payment);
-          set({ rentPayments: [payment, ...get().rentPayments] });
-          return payment;
+        } catch (error) {
+          throw paymentFailure(error, 'Payment submission');
+        } finally {
+          paymentMutations.delete(key);
         }
       },
 
       updateRentPaymentStatus: async (paymentId, status) => {
+        const session = requirePaymentSession();
+        if (status !== 'verified' && status !== 'rejected') throw new Error('Payment decisions are final; resetting is not supported.');
         const existing = get().rentPayments.find((p) => p.id === paymentId);
-        if (!existing) return;
-        // Approve/reject on the backend so the decision is shared across devices.
+        if (!existing || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(paymentId)) {
+          throw new Error('Reload payments to select a server record. Legacy local records cannot be approved.');
+        }
+        if (existing.status !== 'awaiting_verification') throw new Error('This payment has already been decided. Reload payments.');
+        const key = `${session}:decision:${paymentId}`;
+        if (paymentMutations.has(key)) throw new Error('A decision for this payment is already in progress.');
+        paymentMutations.add(key);
         try {
           const res = await api.post<ApiRentPayment>(`/rent/payments/${paymentId}/decision`, { status });
-          const updated = mapApiRentPayment(res.data);
-          await idbSaveRentPayment(updated).catch(() => {});
-          set({ rentPayments: get().rentPayments.map((p) => (p.id === paymentId ? updated : p)) });
-        } catch {
-          // Fallback: update locally (works for locally-only records / offline).
-          const updated = { ...existing, status };
-          await idbSaveRentPayment(updated).catch(() => {});
-          set({ rentPayments: get().rentPayments.map((p) => (p.id === paymentId ? updated : p)) });
+          assertPaymentSession(session);
+          const updated = serverPayment(res.data);
+          if (updated.id !== paymentId || updated.status !== status) throw new Error('Unexpected decision response.');
+          ++paymentLoad;
+          set({ rentPayments: [updated, ...get().rentPayments.filter((p) => p.id !== paymentId)] });
+        } catch (error) {
+          throw paymentFailure(error, 'Payment decision');
+        } finally {
+          paymentMutations.delete(key);
         }
       },
 
@@ -1220,6 +1260,13 @@ export const useDataStore = create<DataStoreState>()(
     }),
     {
       name: 'cpm-data-store-v3',
+      // Ignore payment keys left by older localStorage persist versions.
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<DataStoreState>),
+        rentPayments: [],
+        rentPaymentsLoaded: false,
+      }),
       // Properties, the user directory, and derived alerts are sourced from the
       // backend database on each load — never persist them, so stale cached
       // records can't leak into the UI. Attachments live in IndexedDB (media-idb)
@@ -1242,3 +1289,14 @@ export const useDataStore = create<DataStoreState>()(
     }
   )
 );
+
+// Legacy local payment evidence is neither imported nor automatically deleted.
+useAuth.subscribe((next, previous) => {
+  if (next.user?.id !== previous.user?.id || next.status !== previous.status ||
+      next.user?.roles.join(',') !== previous.user?.roles.join(',')) {
+    ++paymentSession;
+    ++paymentLoad;
+    useDataStore.setState({ rentPayments: [], rentPaymentsLoaded: false });
+  }
+});
+

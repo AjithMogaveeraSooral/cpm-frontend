@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -64,7 +64,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-const MAX_RECEIPT_MB = 15;
+const MAX_RECEIPT_MB = 5;
 
 export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }: PayRentModalProps) {
   const submitRentPayment = useDataStore((s) => s.submitRentPayment);
@@ -74,7 +74,7 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
     [],
   );
 
-  const [method, setMethod] = useState<PaymentMethod>('offline_bank_transfer');
+  const [method, setMethod] = useState<PaymentMethod>(() => PAYMENT_PROVIDERS.find((p) => p.enabled)?.method ?? 'offline_bank_transfer');
   const [amount, setAmount] = useState(String(property.monthly_rent || ''));
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [reference, setReference] = useState('');
@@ -82,6 +82,7 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
   const [receipt, setReceipt] = useState<{ name: string; dataUrl: string; type: string; sizeKb: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submissionLock = useRef(false);
   const [done, setDone] = useState(false);
 
   if (!isOpen) return null;
@@ -99,9 +100,9 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    const ok = file.type.startsWith('image/') || file.type === 'application/pdf';
+    const ok = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type);
     if (!ok) {
-      setError('Receipt must be an image or PDF.');
+      setError('Receipt must be a JPEG, PNG, WebP image or PDF.');
       return;
     }
     if (file.size > MAX_RECEIPT_MB * 1024 * 1024) {
@@ -121,9 +122,14 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
   };
 
   const handleSubmit = async () => {
+    if (submissionLock.current || done) return;
     setError(null);
+    if (!provider.enabled) {
+      setError('Verified collection details are not configured for this payment method. Contact Cypress before transferring funds.');
+      return;
+    }
     const amt = Number(amount);
-    if (!amt || amt <= 0) {
+    if (!Number.isFinite(amt) || amt <= 0) {
       setError('Enter a valid payment amount.');
       return;
     }
@@ -131,6 +137,7 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
       setError('Please upload your payment receipt / screenshot.');
       return;
     }
+    submissionLock.current = true;
     setSubmitting(true);
     try {
       await submitRentPayment({
@@ -151,9 +158,10 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
         paid_to: instructions.bank,
       });
       setDone(true);
-    } catch {
-      setError('Could not save your payment. Your device storage may be full — please try again.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Payment submission was not confirmed. Reconnect and reload payments before retrying.');
     } finally {
+      submissionLock.current = false;
       setSubmitting(false);
     }
   };
@@ -181,6 +189,7 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
             <button
               type="button"
               onClick={onClose}
+              disabled={submitting}
               className="rounded-lg p-1.5 text-white/80 hover:bg-white/15 hover:text-white"
             >
               <X className="h-5 w-5" />
@@ -194,8 +203,8 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
               </div>
               <h4 className="text-lg font-bold text-slate-900">Payment submitted for verification</h4>
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-                We&apos;ve recorded your {formatINR(Number(amount))} payment for {period}. Cypress will verify the
-                receipt against the bank account and issue your official rent receipt.
+                Your {formatINR(Number(amount))} submission for {period} was saved by the server and awaits manual
+                review. This is not confirmation of funds received or a reconciled rent-cycle receipt.
               </p>
               <Button className="mt-6" onClick={onClose}>
                 Done
@@ -203,6 +212,7 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
             </div>
           ) : (
             <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-5">
+              {!provider.enabled && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Payment instructions are unavailable until Cypress configures verified collection details. Do not transfer money to sample accounts. Contact Cypress for assistance.</p>}
               {/* Amount + UPID */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-cypress-200 bg-cypress-50 px-4 py-3">
@@ -352,7 +362,7 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
                     <UploadCloud className="h-6 w-6 text-slate-400" />
                     <span className="text-xs font-semibold text-slate-600">Click to upload (image or PDF)</span>
                     <span className="text-[11px] text-slate-400">Max {MAX_RECEIPT_MB}MB</span>
-                    <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleReceipt} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={handleReceipt} />
                   </label>
                 )}
               </div>
@@ -368,7 +378,7 @@ export function PayRentModal({ isOpen, onClose, property, tenantId, tenantName }
                 <Button variant="secondary" onClick={onClose} disabled={submitting}>
                   Cancel
                 </Button>
-                <Button onClick={handleSubmit} loading={submitting}>
+                <Button onClick={handleSubmit} loading={submitting} disabled={submitting}>
                   Submit Payment
                 </Button>
               </div>
