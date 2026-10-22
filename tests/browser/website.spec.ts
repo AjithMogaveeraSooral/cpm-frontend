@@ -69,19 +69,23 @@ test('reviewed landing uses supplied branding, portrait and functional calls to 
   await page.goto('/');
   const logo = page.getByRole('banner').getByRole('img', { name: 'Cypress Property Management Software' });
   await expect(logo).toBeVisible();
-  await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect.poll(() => logo.locator('img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect(logo).toHaveCSS('mask-image', /cypress-logo/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
   for (const id of ['services', 'why-us', 'application', 'how-it-works', 'plans', 'nri-support', 'founder', 'faqs']) {
     await expect(page.locator(`#${id}`)).toHaveCount(1);
   }
   for (const rate of ['5%', '10%', '15%']) await expect(page.locator('#plans').getByText(rate, { exact: true })).toBeVisible();
-  await expect(page.locator('#plans')).toContainText('Response targets are not completion guarantees');
+  for (const response of ['72-hour response', '48-hour response', '24-hour response']) {
+    await expect(page.locator('#plans')).toContainText(response);
+  }
   const portrait = page.locator('#founder').getByRole('img', { name: 'Sudish Kumar S, founder of Cypress' });
   await portrait.scrollIntoViewIfNeeded();
   await expect(portrait).toBeVisible();
   await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(page.locator('#application').getByRole('link', { name: 'Explore the Application' })).toHaveAttribute('href', '/about/application');
-  await page.locator('#founder').getByRole('link', { name: 'Why I Started Cypress' }).click();
+  await expect(page.locator('#founder')).toContainText('Founder, Cypress Property Management Services');
+  await page.getByRole('navigation', { name: 'About Us footer links' }).getByRole('link', { name: 'Why I Started Cypress' }).click();
   await expect(page).toHaveURL(/about\/founder/);
   await expect(page.getByRole('img', { name: 'Sudish Kumar S, founder of Cypress' })).toBeVisible();
   await page.getByRole('banner').getByRole('link', { name: 'Cypress Property Management home' }).click();

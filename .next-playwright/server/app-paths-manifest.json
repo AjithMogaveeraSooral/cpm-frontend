@@ -1,8 +1,9 @@
 {
   "/page": "app/page.js",
+  "/(public)/welcome/page": "app/(public)/welcome/page.js",
+  "/(public)/owner-services/page": "app/(public)/owner-services/page.js",
   "/(public)/about/page": "app/(public)/about/page.js",
   "/(public)/contact/page": "app/(public)/contact/page.js",
-  "/(public)/owner-services/page": "app/(public)/owner-services/page.js",
   "/(public)/owners/plans-pricing/page": "app/(public)/owners/plans-pricing/page.js",
   "/(public)/owners/nri-property-management/page": "app/(public)/owners/nri-property-management/page.js",
   "/(public)/owners/faqs/page": "app/(public)/owners/faqs/page.js",

@@ -19,13 +19,14 @@ export const navigation = [
 ] as const;
 
 export const services = [
-  { title: 'Tenant Management', text: 'Property marketing, tenant screening, onboarding and renewals.' },
-  { title: 'Rent Management', text: 'Rent tracking, payment records, reminders and statements.' },
-  { title: 'Maintenance Coordination', text: 'Service requests, repair estimates, approvals and progress updates.' },
-  { title: 'Property Inspections', text: 'Scheduled visits and documented property condition reports.' },
-  { title: 'Digital Documentation', text: 'Agreements, inventories, inspection reports and receipts.' },
-  { title: 'Connected Platform', text: 'Convenient owner and tenant access to property information, subject to available application features.' },
+  { title: 'Tenant Management', text: 'Property marketing, screening, verification and onboarding.' },
+  { title: 'Rent Management', text: 'Rent tracking, reminders, receipts and statements.' },
+  { title: 'Maintenance Coordination', text: 'Service requests, estimates, approvals and repairs.' },
+  { title: 'Property Inspections', text: 'Scheduled visits with documented reports.' },
+  { title: 'Digital Documentation', text: 'Agreements, inventories and property records.' },
+  { title: 'Connected Platform', text: 'Owner and tenant dashboards for complete visibility.' },
 ] as const;
+
 
 // serviceOfferings are the distinct ways Cypress can help an owner or landlord.
 // Each is a separate engagement — pick the one that matches the property's

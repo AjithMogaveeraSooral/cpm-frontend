@@ -1,8 +1,11 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Check, ClipboardList, FileText, House, Info, Users, Wrench } from 'lucide-react';
-import { ClosingCTA, PageHero, Section, ServiceOfferings, marketingStyles as s } from '@/components/marketing/sections';
+import { PageHero, Section, marketingStyles as s } from '@/components/marketing/sections';
 import { pageMetadata } from '@/lib/site-config';
-import propertyHero from '../../../../public/brand/property-hero.webp';
+import ownerMgmtHero from '../../../../public/brand/owner-mgmt-hero.webp';
+import ownerLivingSofa from '../../../../public/brand/owner-living-sofa.webp';
+import ownerMgmtCta from '../../../../public/brand/owner-mgmt-cta.webp';
 import p from '@/components/marketing/pages.module.css';
 
 export const metadata = pageMetadata('Rental Property Management in Bangalore | Cypress', 'From property onboarding and tenant placement to rent tracking, inspections and move-out coordination. Explore Cypress owner services in Bengaluru.', '/owner-services');
@@ -19,8 +22,8 @@ const notIncluded = ['Property taxes & society charges', 'Utility bills & common
 
 export default function OwnerServicesPage() {
   return <>
-    <PageHero eyebrow="Property management services" title="Your Property," accent="Professionally Managed." description="From finding the right tenant to managing everyday rental operations, Cypress helps you stay informed without handling every detail yourself." image={propertyHero} breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Owners', href: '/owner-services' }, { label: 'Property Management' }]}>
-      <div className={s.actions}><Link href="/owner-inquiry" className={s.button}>List Your Property<ArrowRight size={16} aria-hidden="true" /></Link><Link href="/owners/plans-pricing" className={s.secondary}>View Plans &amp; Pricing</Link></div>
+    <PageHero eyebrow="Property management services" title="Your Property," accent="Professionally Managed." description="From finding the right tenant to managing everyday rental operations, Cypress helps you stay informed without handling every detail yourself." image={ownerMgmtHero} breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Owners', href: '/owner-services' }, { label: 'Property Management' }]}>
+      <div className={s.actions}><Link href="/owner-inquiry" className={s.button}>List Your Property<ArrowRight size={16} aria-hidden="true" /></Link></div>
     </PageHero>
 
     <section className={`${s.section} ${p.lifecycleBand}`}>
@@ -32,24 +35,46 @@ export default function OwnerServicesPage() {
 
     <Section>
       <div className={p.splitRow}>
-        <div><span className={s.eyebrow}>You stay in control</span><h2>Important Decisions Remain With You.</h2><p className={s.lead}>Cypress coordinates the day-to-day work while you retain the agreed approval rights over tenant selection, non-covered repair expenses and significant property decisions.</p></div>
-        <ul className={p.checkList}>{control.map((item) => <li key={item}><Check aria-hidden="true" />{item}</li>)}</ul>
+        <div className={p.sofaVisual}>
+          <Image src={ownerLivingSofa} alt="Comfortable modern living room" width={520} height={430} className={p.sofaImg} priority />
+        </div>
+        <div>
+          <span className={s.eyebrow}>You stay in control</span>
+          <h2>Important Decisions Remain With You.</h2>
+          <p className={s.lead}>Cypress coordinates the day-to-day work while you retain the agreed approval rights over tenant selection, non-covered repair expenses and significant property decisions.</p>
+          <ul className={p.checkList} style={{ marginTop: '24px' }}>{control.map((item) => <li key={item}><Check aria-hidden="true" />{item}</li>)}</ul>
+        </div>
       </div>
     </Section>
 
     <Section tone="soft">
       <div className={p.splitRow}>
-        <div><span className={s.eyebrow}>Clear responsibilities</span><h2>Transparent. Organized. No Surprises.</h2><p className={s.lead}>Understand what your plan covers, which expenses are separate and how maintenance estimates and approvals are handled.</p><div className={s.actions}><Link href="/owners/plans-pricing" className={s.button}>View Plans &amp; Pricing<ArrowRight size={16} aria-hidden="true" /></Link></div></div>
+        <div>
+          <span className={s.eyebrow}>Clear responsibilities</span>
+          <h2>Transparent. Organized. No Surprises.</h2>
+          <p className={s.lead}>Understand what your plan covers, which expenses are separate and how maintenance estimates and approvals are handled.</p>
+          <div className={s.actions}><Link href="/owners/plans-pricing" className={s.button}>View Plans &amp; Pricing<ArrowRight size={16} aria-hidden="true" /></Link></div>
+        </div>
         <div className={p.inclGrid}>
           <div><h3><ClipboardList size={20} aria-hidden="true" />What’s Included</h3><ul>{included.map((item) => <li key={item}><Check size={16} aria-hidden="true" />{item}</li>)}</ul></div>
           <div><h3><Info size={20} aria-hidden="true" />What’s Not Included</h3><ul>{notIncluded.map((item) => <li key={item}><Info size={16} aria-hidden="true" />{item}</li>)}</ul></div>
         </div>
       </div>
-      <p className={s.note}>Unless expressly covered by your selected plan. Detailed exclusions and approval conditions are provided in the applicable service agreement.</p>
     </Section>
 
-    <Section id="services" title="Ways Cypress Can Help" eyebrow="Our services"><p className={s.lead}>Whether you are renting out your home, already have a tenant, own a vacant home or plot, or want to sell — there is a Cypress service for your situation.</p><ServiceOfferings /></Section>
-
-    <ClosingCTA title="Ready to Simplify Property Ownership?" description="Tell us about your property and explore a management plan that suits your needs." />
+    <Section>
+      <div className={p.ownerCtaGrid}>
+        <div>
+          <span className={s.eyebrow}>Ready to get started?</span>
+          <h2>Ready to Simplify Property Ownership?</h2>
+          <p className={s.lead}>Tell us about your property and explore a management plan that suits your needs.</p>
+          <div className={s.actions}><Link href="/owner-inquiry" className={s.button}>List Your Property<ArrowRight size={16} aria-hidden="true" /></Link></div>
+        </div>
+        <div className={p.ctaVisual}>
+          <Image src={ownerMgmtCta} alt="Cypress application on laptop" width={614} height={250} className={p.ctaImg} />
+        </div>
+      </div>
+    </Section>
   </>;
 }
+

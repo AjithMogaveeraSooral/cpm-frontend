@@ -1,0 +1,12 @@
+.logo {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  background: linear-gradient(135deg, rgb(var(--cypress-600)), rgb(var(--cypress-800)));
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+}
+
+.dimensions { display: block; width: 100%; height: auto; opacity: 0; }

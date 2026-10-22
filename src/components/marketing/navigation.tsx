@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CircleUserRound, MessageCircle, Phone, Search } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
+import { ThemeSwitcher } from '@/components/theme-switcher';
 import { navigation } from '@/lib/site-content';
 import { siteConfig, whatsappUrl } from '@/lib/site-config';
 import s from './marketing.module.css';
@@ -86,6 +87,7 @@ export function MarketingNavigation() {
             <Link href="/owner-inquiry" className={s.button}>List Your Property</Link>
           </div>
         </div>
+        <ThemeSwitcher className={s.themeControl} />
         <details className={s.mobileMenu}>
           <summary>Menu</summary>
           <div className={s.mobilePanel}>

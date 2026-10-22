@@ -2,11 +2,14 @@
 
 import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { ArrowRight, BarChart3, CalendarDays, FileText, Home, MapPin, MessageCircle, Phone, ShieldCheck, Users } from 'lucide-react';
 import { ZodError } from 'zod';
 import { api, ApiError } from '@/lib/api-client';
 import { approvedPlan, bhkOptions, furnishingOptions, inquiryPayload, localDate, planOptions, type InquiryKind } from './inquiry-schema';
+import inquiryOwnerDesk from '../../../public/brand/inquiry-owner-desk.webp';
+import inquiryTenantLiving from '../../../public/brand/inquiry-tenant-living.webp';
 import p from '@/components/marketing/pages.module.css';
 
 type Field = { name: string; label: string; type?: string; options?: readonly string[]; autoComplete?: string; maxLength?: number; optional?: boolean; defaultValue?: string; full?: boolean; placeholder?: string };
@@ -116,6 +119,15 @@ export function InquiryForm({ kind }: { kind: InquiryKind }) {
           <span className="block text-[11.5px] font-bold uppercase tracking-[0.18em] text-[#0a2a66]">{owner ? 'Owner inquiry' : visit ? 'Property visit inquiry' : 'Tenant inquiry'}</span>
           <h1 className="mt-4">{owner ? 'Tell Us About ' : 'Let’s Help You '}<em>{owner ? 'Your Property.' : 'Find Your Next Home.'}</em></h1>
           <p>{owner ? 'Share a few details about your property and our team can discuss suitable management options.' : 'Tell us what you’re looking for and Cypress can contact you about suitable available rental properties.'}</p>
+          <div className={p.inqVisual}>
+            <Image
+              src={owner ? inquiryOwnerDesk : inquiryTenantLiving}
+              alt={owner ? 'Property owner discussing management with Cypress' : 'Tenant enjoying a comfortable rental home in Bengaluru'}
+              className={p.inqImg}
+              priority
+              sizes="(max-width: 800px) 100vw, 480px"
+            />
+          </div>
           <ul className={p.benefitList}>{benefits.map(({ title, text, Icon, tone }) => <li key={title}><div className={`${p.cardIcon} ${tone}`}><Icon size={24} aria-hidden="true" /></div><div><h3>{title}</h3><p>{text}</p></div></li>)}</ul>
         </div>
         <div className={`${p.formWrap} ${owner ? p.withSteps : ''}`}>

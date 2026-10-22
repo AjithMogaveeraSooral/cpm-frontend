@@ -1,6 +1,6 @@
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Building2, Check, ClipboardCheck, FileText, House, KeyRound, Tag, Trees, Users, Wallet, Wrench } from 'lucide-react';
+import { ArrowRight, Building2, Check, ChevronRight, ClipboardCheck, Crown, FileText, House, KeyRound, Tag, Trees, Users, Wallet, Wrench } from 'lucide-react';
 import { plans, planFeatures, services, serviceOfferings, type FAQ } from '@/lib/site-content';
 import s from './marketing.module.css';
 
@@ -53,24 +53,48 @@ export function ServiceOfferings() {
   })}</div>;
 }
 
+const planIcons = {
+  bronze: House,
+  silver: Building2,
+  gold: Crown,
+} as const;
+
 export function PlanCards({ detailed = false }: { detailed?: boolean }) {
   return <div className={s.grid}>{plans.map((plan) => {
-    const slug = plan.name.toLowerCase();
+    const slug = plan.name.toLowerCase() as keyof typeof planIcons;
+    const PlanIcon = planIcons[slug];
     const bullets = detailed
       ? planFeatures[plan.name]
-      : [plan.subtitle, `${plan.visits} visits per year`, `${plan.response.replace(' hours', '-hour')} response target`];
+      : plan.name === 'Bronze'
+        ? ['Essential management', 'Up to 2 visits/year', '72-hour response']
+        : plan.name === 'Silver'
+          ? ['Enhanced property care', 'Up to 4 visits/year', '48-hour response']
+          : ['Comprehensive management', 'Up to 6 visits/year', '24-hour response'];
+
     return <article className={`${s.card} ${s.planCard}`} data-plan={slug} key={plan.name}>
       {plan.name === 'Gold' && <span className={s.popular}>Most Popular</span>}
+      {detailed && PlanIcon && (
+        <div className={s.planCornerIcon}>
+          <PlanIcon size={22} aria-hidden="true" />
+        </div>
+      )}
+      <div className={s.planHeaderRow}>
+        <h3>{plan.name}</h3>
+        {!detailed && <ChevronRight size={18} className={s.planChevron} aria-hidden="true" />}
+      </div>
       {detailed && <span className={s.eyebrow}>{plan.subtitle}</span>}
-      <h3>{plan.name}</h3>
-      <div className={s.rateRow}><span className={s.rate}>{plan.rate}</span><span>of monthly rent<br />GST included</span></div>
-      <ul className={s.planDetails}>{bullets.map((item) => <li key={item}><Check size={15} aria-hidden="true" />{item}</li>)}</ul>
+      <div className={s.rateRow}>
+        <span className={s.rate}>{plan.rate}</span>
+        <span>of monthly rent<br />GST included</span>
+      </div>
+      <ul className={s.planDetails}>{bullets.map((item) => <li key={item}><Check size={16} aria-hidden="true" />{item}</li>)}</ul>
       <div className="mt-6">{detailed
         ? <Link href={`/owner-inquiry?plan=${slug}`} className={`${s.secondary} ${s.fullWidth}`}>Choose {plan.name}<ArrowRight size={16} aria-hidden="true" /></Link>
         : <Link href="/owners/plans-pricing" className={`${s.secondary} ${s.fullWidth}`}>View Plan Details</Link>}</div>
     </article>;
   })}</div>;
 }
+
 
 export function FaqList({ items }: { items: FAQ[] }) {
   return <div className={s.faq}>{items.map((item) => <details key={item.question}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div>;

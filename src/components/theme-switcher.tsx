@@ -22,6 +22,10 @@ export type ThemeId = (typeof THEMES)[number]['id'];
 
 const STORAGE_KEY = 'cpm-theme';
 
+function validTheme(value: string | null): ThemeId {
+  return THEMES.find(({ id }) => id === value)?.id ?? 'green';
+}
+
 function applyTheme(id: ThemeId) {
   // 'green' is the default declared in :root, so no attribute is needed.
   if (id === 'green') document.documentElement.removeAttribute('data-theme');
@@ -32,12 +36,23 @@ export function ThemeSwitcher({ className }: { className?: string }) {
   const [theme, setTheme] = useState<ThemeId>('green');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const saved = (localStorage.getItem(STORAGE_KEY) as ThemeId) || 'green';
-    setTheme(saved);
-    applyTheme(saved);
+    function sync() {
+      let saved = validTheme(document.documentElement.getAttribute('data-theme'));
+      try { saved = validTheme(localStorage.getItem(STORAGE_KEY)); } catch { /* Storage may be blocked. */ }
+      setTheme(saved);
+      applyTheme(saved);
+    }
+    sync();
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
   }, []);
+
+  useEffect(() => {
+    if (open) ref.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus();
+  }, [open]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -50,18 +65,35 @@ export function ThemeSwitcher({ className }: { className?: string }) {
   function select(id: ThemeId) {
     setTheme(id);
     applyTheme(id);
-    localStorage.setItem(STORAGE_KEY, id);
+    try { localStorage.setItem(STORAGE_KEY, id); } catch { /* Switching still works without persistence. */ }
     setOpen(false);
+    trigger.current?.focus();
   }
 
   return (
-    <div ref={ref} className={`relative ${className ?? ''}`}>
+    <div ref={ref} className={`relative ${className ?? ''}`} onKeyDown={(event) => {
+      if (!open) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        trigger.current?.focus();
+      } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        const items = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? []);
+        const current = items.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        items[next]?.focus();
+      } else if (event.key === 'Tab') setOpen(false);
+    }}>
       <button
+        ref={trigger}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
         title="Change theme"
+        aria-label="Change theme"
         className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-soft transition-colors hover:border-cypress-300 hover:text-cypress-700"
       >
         <Palette className="h-[18px] w-[18px]" />
@@ -70,6 +102,7 @@ export function ThemeSwitcher({ className }: { className?: string }) {
       {open && (
         <div
           role="menu"
+          aria-label="Color theme"
           className="absolute right-0 z-50 mt-2 max-h-96 w-56 overflow-y-auto animate-scale-in rounded-xl border border-slate-200 bg-white p-1.5 shadow-elevated"
         >
           <div className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
@@ -78,6 +111,7 @@ export function ThemeSwitcher({ className }: { className?: string }) {
           {THEMES.map((t) => (
             <button
               key={t.id}
+              type="button"
               role="menuitemradio"
               aria-checked={theme === t.id}
               onClick={() => select(t.id)}

@@ -18,6 +18,18 @@
       "static/css/app/(public)/layout.css",
       "static/chunks/app/(public)/layout.js"
     ],
+    "/(public)/welcome/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/welcome/page.css",
+      "static/chunks/app/(public)/welcome/page.js"
+    ],
+    "/(public)/owner-services/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/owner-services/page.css",
+      "static/chunks/app/(public)/owner-services/page.js"
+    ],
     "/(public)/about/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -29,12 +41,6 @@
       "static/chunks/main-app.js",
       "static/css/app/(public)/contact/page.css",
       "static/chunks/app/(public)/contact/page.js"
-    ],
-    "/(public)/owner-services/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/(public)/owner-services/page.css",
-      "static/chunks/app/(public)/owner-services/page.js"
     ],
     "/(public)/owners/plans-pricing/page": [
       "static/chunks/webpack.js",

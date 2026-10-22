@@ -50,7 +50,7 @@ export default async function PropertyDetailPage({ params }: Props) {
     <header className="my-6"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">Available · Vacant</span><h1 className="mt-4 text-3xl font-bold text-slate-900">{title}</h1><p className="mt-2 text-slate-600">{[p.locality, p.city].filter(Boolean).join(', ') || 'Location available on enquiry'}</p><p className="mt-2 text-xs text-slate-500">Property reference: {p.upid}</p></header>
     <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
       <section aria-label="Property photographs and videos">
-        <div className="h-72 overflow-hidden rounded-2xl bg-slate-100 sm:h-96"><PropertyImage src={p.cover_image_url} alt={title} /></div>
+        <div className="h-72 overflow-hidden rounded-2xl bg-slate-100 sm:h-96"><PropertyImage src={p.cover_image_url} fallback="/brand/find-prop-hero.webp" alt={title} /></div>
         {media.length > 0 && <div className="mt-4 grid gap-4 sm:grid-cols-2">{media.filter((m) => m.url !== p.cover_image_url).map((m, index) => <div key={m.url} className="h-52 overflow-hidden rounded-xl bg-slate-100">{m.type === 'video' ? <video controls preload="none" src={m.url} aria-label={`Property video ${index + 1}`} className="h-full w-full" /> : <PropertyImage src={m.url} alt={`${title}, photograph ${index + 1}`} />}</div>)}</div>}
       </section>
       <section className="h-fit rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-label="Rental details">
