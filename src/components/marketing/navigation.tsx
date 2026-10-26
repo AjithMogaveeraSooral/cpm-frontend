@@ -3,12 +3,27 @@
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CircleUserRound, MessageCircle, Phone, Search } from 'lucide-react';
+import { ArrowRight, CircleUserRound, MessageCircle, Phone, Search } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { navigation } from '@/lib/site-content';
 import { siteConfig, whatsappUrl } from '@/lib/site-config';
 import s from './marketing.module.css';
+
+type NavLink = { label: string; href: string; group?: string; meta?: string };
+
+// Split a navigation group into its primary column and any titled sub-groups.
+function splitLinks(links: readonly NavLink[]) {
+  const primary = links.filter((link) => !link.group);
+  const groups = new Map<string, NavLink[]>();
+  for (const link of links) if (link.group) groups.set(link.group, [...(groups.get(link.group) ?? []), link]);
+  return { primary, groups: [...groups.entries()] };
+}
+
+const groupBlurbs: Record<string, string> = {
+  'End-to-End Cypress Property Management Plans': 'Full rental lifecycle · % of rent · GST inclusive',
+  'Specialised Owner Plans': 'Existing tenants, vacant homes, plots and sales',
+};
 
 function SearchBox({ id }: { id: string }) {
   return (
@@ -61,12 +76,32 @@ export function MarketingNavigation() {
           <BrandLogo className={s.brandLogo} priority />
         </Link>
         <nav className={s.desktopNav} aria-label="Main navigation">
-          {navigation.map((group) => (
-            <details key={group.label} className={s.dropdown} name="desktop-navigation">
-              <summary className={inGroup(group.links) ? s.active : undefined}>{group.label}</summary>
-              <div className={s.dropdownPanel}>{group.links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}</div>
-            </details>
-          ))}
+          {navigation.map((group) => {
+            const { primary, groups } = splitLinks(group.links);
+            const mega = groups.length > 0;
+            return (
+              <details key={group.label} className={`${s.dropdown} ${mega ? s.mega : ''}`} name="desktop-navigation">
+                <summary className={inGroup(group.links) ? s.active : undefined}>{group.label}</summary>
+                <div className={s.dropdownPanel}>
+                  {mega ? (
+                    <>
+                      <div className={s.megaCol}>
+                        <strong>{group.label}<small>Services, pricing and support</small></strong>
+                        {primary.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
+                      </div>
+                      {groups.map(([title, links]) => (
+                        <div className={s.megaCol} key={title}>
+                          <strong>{title}<small>{groupBlurbs[title]}</small></strong>
+                          {links.map((link) => <Link key={link.href} href={link.href}>{link.label}{link.meta && <small>{link.meta}</small>}</Link>)}
+                          {title.startsWith('End-to-End') && <div className={s.megaAll}><Link href="/owners/plans-pricing">Compare Bronze, Silver &amp; Gold<ArrowRight size={15} aria-hidden="true" /></Link></div>}
+                        </div>
+                      ))}
+                    </>
+                  ) : group.links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
+                </div>
+              </details>
+            );
+          })}
           <Link href="/contact" className={`${s.navLink} ${pathname === '/contact' ? s.active : ''}`}>Contact</Link>
         </nav>
         <SearchBox id="site-search-desktop" />
@@ -93,12 +128,21 @@ export function MarketingNavigation() {
           <div className={s.mobilePanel}>
             <SearchBox id="site-search-mobile" />
             <nav aria-label="Mobile navigation">
-              {navigation.map((group) => (
-                <details key={group.label} name="mobile-navigation">
-                  <summary>{group.label}</summary>
-                  {group.links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
-                </details>
-              ))}
+              {navigation.map((group) => {
+                const { primary, groups } = splitLinks(group.links);
+                return (
+                  <details key={group.label} name="mobile-navigation">
+                    <summary>{group.label}</summary>
+                    {primary.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
+                    {groups.map(([title, links]) => (
+                      <div key={title}>
+                        <strong>{title}</strong>
+                        {links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
+                      </div>
+                    ))}
+                  </details>
+                );
+              })}
               <Link href="/contact">Contact</Link>
               <Link href={siteConfig.ownerLogin}>Owner Login</Link>
               <Link href={siteConfig.tenantLogin}>Tenant Login</Link>

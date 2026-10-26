@@ -87,7 +87,7 @@ export default function TenantServicesPage() {
         <div className={p.maintenancePhoneWrap}>
           <Image
             src={maintenancePhone}
-            alt="Tenant submitting maintenance request on mobile phone"
+            alt="Electrician inspecting an electrical panel — illustrative maintenance photograph"
             className={p.maintenancePhoneImg}
             sizes="(max-width: 800px) 100vw, 380px"
           />
@@ -117,7 +117,7 @@ export default function TenantServicesPage() {
         <div className={p.tenantCtaWrap}>
           <Image
             src={tenantCtaMan}
-            alt="Tenant relaxing at home enjoying convenient property management"
+            alt="Comfortable furnished living space — illustrative photograph"
             className={p.tenantCtaImg}
             sizes="(max-width: 800px) 100vw, 340px"
           />

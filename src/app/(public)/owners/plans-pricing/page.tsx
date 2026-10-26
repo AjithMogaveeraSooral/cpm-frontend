@@ -1,28 +1,13 @@
 import Link from 'next/link';
-import { ArrowRight, Check, ChevronDown, FileText, HelpCircle, IndianRupee, Minus, Percent, Smartphone } from 'lucide-react';
+import { ArrowRight, ChevronDown, FileText, HelpCircle, IndianRupee, Percent, Smartphone } from 'lucide-react';
 import { PageHero, PlanCards, Section, marketingStyles as s } from '@/components/marketing/sections';
 import { PlanCalculator } from '@/components/marketing/plan-calculator';
-import { plans } from '@/lib/site-content';
+import { EndToEndComparison, TierUpgrades } from '@/components/marketing/plan-pages';
 import { pageMetadata } from '@/lib/site-config';
-import pricingHero from '../../../../../public/brand/pricing-hero.webp';
+import pricingHero from '../../../../../public/brand/hd-plans-loft.webp';
 import p from '@/components/marketing/pages.module.css';
 
 export const metadata = pageMetadata('Property Management Plans & Pricing | Cypress', 'Compare Bronze 5%, Silver 10% and Gold 15% property management plans, inclusive of GST. ₹0 onboarding; clear maintenance coverage and exclusions.', '/owners/plans-pricing');
-
-const yes = <Check size={18} className={p.yes} aria-label="Included" />;
-const no = <Minus size={18} className={p.dash} aria-label="Not included" />;
-const rows: [string, ...React.ReactNode[]][] = [
-  ['Onboarding Fee', '₹0', '₹0', '₹0'],
-  ['Tenant Sourcing & Screening', yes, yes, yes],
-  ['Rent Tracking & Documentation', yes, yes, yes],
-  ['Property Visits per Year', 'Up to 2', 'Up to 4', 'Up to 6'],
-  ['Maintenance Coordination', 'Owner-funded', 'Selectable option', 'All-inclusive option'],
-  ['Maintenance Response (Initial)', 'Within 72 hours', 'Within 48 hours', 'Within 24 hours'],
-  ['Dedicated Property Manager', '—', yes, yes],
-  ['Owner Dashboard Access', yes, yes, yes],
-  ['Inspection Reports (Photos)', yes, yes, yes],
-  ['Priority Support', '—', '—', yes],
-];
 
 export default function PricingPage() {
   return <>
@@ -36,8 +21,11 @@ export default function PricingPage() {
     </PageHero>
 
     <Section eyebrow="Our plans" title="Choose the Right Care for Your Property" className={p.centerHead}>
-      <p className={s.lead}>All plans are designed to give you a well-managed, well-maintained property with complete visibility.</p>
+      <p className={s.lead}>All plans are designed to give you a well-managed, well-maintained property with complete visibility. Explore each plan in detail, or see every Cypress owner plan — including Rental Care, Home Guardian, Land Guardian and Property Sales.</p>
       <PlanCards detailed />
+      <div className={s.actions} style={{ justifyContent: 'center' }}>
+        <Link href="/owners/plans" className={s.textLink}>View all owner plans<ArrowRight size={16} aria-hidden="true" /></Link>
+      </div>
     </Section>
 
     <Section tone="soft">
@@ -45,17 +33,9 @@ export default function PricingPage() {
     </Section>
 
     <Section eyebrow="Plan comparison" title="Compare Plan Features">
-      <div className={p.compareLegend}>
-        <span><Check size={15} className={p.yes} aria-hidden="true" /> Included</span>
-        <span><Minus size={15} className={p.dash} aria-hidden="true" /> Not included</span>
-        <span><span className={p.dotOpt} /> Optional / Plan specific</span>
-      </div>
-      <div className={s.tableScroll} role="region" aria-label="Plan comparison, scroll horizontally on smaller screens" tabIndex={0}>
-        <table className={`${s.table} ${p.compare}`}>
-          <thead><tr><th scope="col">Feature</th>{plans.map((plan) => <th key={plan.name} scope="col">{plan.name}<br /><small>{plan.rate} (GST incl.)</small></th>)}</tr></thead>
-          <tbody>{rows.map(([label, ...values]) => <tr key={label}><th scope="row">{label}</th>{values.map((value, index) => <td key={plans[index].name}>{value}</td>)}</tr>)}</tbody>
-        </table>
-      </div>
+      <p className={s.lead}>Highlighted cells show exactly what Silver adds over Bronze and what Gold adds over Silver. Response targets are service-level targets, not repair-completion guarantees.</p>
+      <EndToEndComparison />
+      <TierUpgrades />
     </Section>
 
     <Section tone="soft">

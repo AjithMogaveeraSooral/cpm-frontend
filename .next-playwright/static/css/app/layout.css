@@ -1,3 +1,38 @@
+/*!****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[3].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[14].oneOf[3].use[2]!./node_modules/next/font/local/target.css?{"path":"src/app/layout.tsx","import":"","arguments":[{"src":"./fonts/manrope-latin.woff2","variable":"--font-sans","display":"swap","weight":"200 800","fallback":["Inter","system-ui","sans-serif"]}],"variableName":"sans"} ***!
+  \****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+@font-face {
+font-family: 'sans';
+src: url(/_next/static/media/4c9affa5bc8f420e-s.p.woff2) format('woff2');
+font-display: swap;
+font-weight: 200 800;
+}@font-face {font-family: 'sans Fallback';src: local("Arial");ascent-override: 106.45%;descent-override: 29.96%;line-gap-override: 0.00%;size-adjust: 100.14%
+}.__className_227acb {font-family: 'sans', 'sans Fallback', Inter, system-ui, sans-serif
+}.__variable_227acb {--font-sans: 'sans', 'sans Fallback', Inter, system-ui, sans-serif
+}
+
+/*!***********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[3].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[14].oneOf[3].use[2]!./node_modules/next/font/local/target.css?{"path":"src/app/layout.tsx","import":"","arguments":[{"src":[{"path":"./fonts/fraunces-latin.woff2","style":"normal","weight":"300 700"},{"path":"./fonts/fraunces-italic-latin.woff2","style":"italic","weight":"300 700"}],"variable":"--font-display","display":"swap","fallback":["Georgia","serif"]}],"variableName":"display"} ***!
+  \***********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+@font-face {
+font-family: 'display';
+src: url(/_next/static/media/6e8c7cb283336a9d-s.p.woff2) format('woff2');
+font-display: swap;
+font-weight: 300 700;
+font-style: normal;
+}
+
+@font-face {
+font-family: 'display';
+src: url(/_next/static/media/45d0fdf0988e07ff-s.p.woff2) format('woff2');
+font-display: swap;
+font-weight: 300 700;
+font-style: italic;
+}@font-face {font-family: 'display Fallback';src: local("Arial");ascent-override: 84.05%;descent-override: 21.91%;line-gap-override: 0.00%;size-adjust: 116.36%
+}.__className_d60afe {font-family: 'display', 'display Fallback', Georgia, serif
+}.__variable_d60afe {--font-display: 'display', 'display Fallback', Georgia, serif
+}
+
 /*!*****************************************************************************************************************************************************************************************************************************************************************!*\
   !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./src/app/globals.css ***!
   \*****************************************************************************************************************************************************************************************************************************************************************/
@@ -2614,7 +2649,10 @@ video {
 }
 
 :root {
-  --font-sans: 'Inter', system-ui, sans-serif;
+  /* --font-sans and --font-display are provided by next/font in layout.tsx
+     (Manrope + Fraunces, self-hosted). These are only fallbacks. */
+  --font-sans-fallback: 'Inter', system-ui, sans-serif;
+  --font-display-fallback: Georgia, 'Times New Roman', serif;
 
   /* Brand palette as RGB channel triplets (used as rgb(var(--x) / <alpha>)).
      :root is the default "Cypress Green" theme; [data-theme] blocks below
@@ -2769,6 +2807,9 @@ body {
   color: rgb(15 23 42 / var(--tw-text-opacity, 1));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-sans, var(--font-sans-fallback));
+  font-feature-settings: 'ss01', 'cv11', 'liga';
+  text-rendering: optimizeLegibility;
 }
 
 /* Google Places Autocomplete dropdown is appended to <body>; lift it above

@@ -242,6 +242,21 @@
 .notice a { color: var(--teal); text-decoration: underline; text-underline-offset: 3px; font-weight: 650; }
 .successRef { padding: 14px 16px; border-radius: 10px; background: var(--teal-soft); color: #064e45; font-size: 14px; }
 
+/* Consistent editorial surfaces across information pages and enquiry forms. */
+.mutedBand, .lifecycleBand, .supportBand, .inqPage { background: var(--sage-surface); }
+.infoCard, .helpCard, .inclGrid, .nriCards article, .faqList details,
+.sidePanel, .tsGrid article, .formCard { background: var(--panel); box-shadow: var(--shadow-md); }
+.audienceRow, .nriCta, .dashboardCta, .faqCtaCard, .calculator { background: var(--sage-surface); border: 1px solid var(--line); }
+.estimate, .sideSteps { background: color-mix(in srgb, var(--surface) 80%, #b9c8ae); }
+.aboutMugImg, .sofaImg, .ctaImg, .inqImg, .sideImg { aspect-ratio: 3 / 2; object-fit: cover; }
+.maintenancePhoneImg { max-width: 520px; aspect-ratio: 4 / 3; object-fit: cover; }
+.tenantCtaImg { aspect-ratio: 4 / 3; }
+.aboutCtaGrid, .ownerCtaGrid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+
+@media (max-width: 800px) {
+  .aboutCtaGrid, .ownerCtaGrid { grid-template-columns: 1fr; gap: 28px; }
+}
+
 @media (max-width: 1100px) {
   .calculator { grid-template-columns: 1fr 1fr; }
   .calcIntro { grid-column: 1 / -1; padding-bottom: 0; }

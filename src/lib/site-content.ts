@@ -1,9 +1,24 @@
+// Navigation groups. Links with a `group` render under that heading inside the
+// Owners mega-menu; ungrouped links are the primary column.
+export const ownerPlanGroups = {
+  endToEnd: 'End-to-End Cypress Property Management Plans',
+  specialised: 'Specialised Owner Plans',
+} as const;
+
 export const navigation = [
   { label: 'Owners', links: [
     { label: 'Property Management', href: '/owner-services' },
+    { label: 'All Owner Plans', href: '/owners/plans' },
     { label: 'Plans & Pricing', href: '/owners/plans-pricing' },
     { label: 'NRI Owners', href: '/owners/nri-property-management' },
     { label: 'Owner FAQs', href: '/owners/faqs' },
+    { label: 'Bronze — Essential Management', href: '/owners/plans/bronze', group: ownerPlanGroups.endToEnd, meta: '5% of rent' },
+    { label: 'Silver — Enhanced Property Care', href: '/owners/plans/silver', group: ownerPlanGroups.endToEnd, meta: '10% of rent' },
+    { label: 'Gold — Comprehensive Management', href: '/owners/plans/gold', group: ownerPlanGroups.endToEnd, meta: '15% of rent' },
+    { label: 'Cypress Rental Care', href: '/owners/plans/rental-care', group: ownerPlanGroups.specialised, meta: 'Existing tenant' },
+    { label: 'Cypress Home Guardian', href: '/owners/plans/home-guardian', group: ownerPlanGroups.specialised, meta: 'Vacant home' },
+    { label: 'Cypress Land Guardian', href: '/owners/plans/land-guardian', group: ownerPlanGroups.specialised, meta: 'Vacant plot' },
+    { label: 'Cypress Property Sales', href: '/owners/plans/property-sales', group: ownerPlanGroups.specialised, meta: 'Listing & sale' },
   ] },
   { label: 'Tenants', links: [
     { label: 'Find a Property', href: '/tenants/find-property' },
@@ -19,12 +34,12 @@ export const navigation = [
 ] as const;
 
 export const services = [
-  { title: 'Tenant Management', text: 'Property marketing, screening, verification and onboarding.' },
-  { title: 'Rent Management', text: 'Rent tracking, reminders, receipts and statements.' },
-  { title: 'Maintenance Coordination', text: 'Service requests, estimates, approvals and repairs.' },
-  { title: 'Property Inspections', text: 'Scheduled visits with documented reports.' },
-  { title: 'Digital Documentation', text: 'Agreements, inventories and property records.' },
-  { title: 'Connected Platform', text: 'Owner and tenant dashboards for complete visibility.' },
+  { title: 'Tenant Management', text: 'Property marketing, tenant screening, onboarding and renewals.' },
+  { title: 'Rent Management', text: 'Rent tracking, payment records, reminders and statements.' },
+  { title: 'Maintenance Coordination', text: 'Service requests, repair estimates, approvals and progress updates.' },
+  { title: 'Property Inspections', text: 'Scheduled visits and documented property condition reports.' },
+  { title: 'Digital Documentation', text: 'Agreements, inventories, inspection reports and receipts.' },
+  { title: 'Connected Platform', text: 'Convenient owner and tenant access to property information.' },
 ] as const;
 
 
@@ -43,36 +58,36 @@ export const serviceOfferings: ServiceOffering[] = [
     cta: 'Compare Bronze, Silver & Gold',
   },
   {
-    title: 'Existing Tenant Management',
+    title: 'Cypress Rental Care',
     audience: 'For owners who already have a tenant',
     text: 'Already have a tenant but want us to handle the day-to-day? Cypress takes over rent follow-ups, maintenance, inspections and renewals without disturbing your current tenancy.',
     icon: 'Users',
-    href: '/owner-inquiry',
-    cta: 'Hand Over Coordination',
+    href: '/owners/plans/rental-care',
+    cta: 'Explore Rental Care',
   },
   {
-    title: 'Vacant Home Care',
+    title: 'Cypress Home Guardian',
     audience: 'For homes that are not currently rented',
     text: 'Keep an unoccupied home secure and well-kept with scheduled inspections, cleaning and upkeep coordination, along with documented condition reports.',
     icon: 'House',
-    href: '/owner-inquiry',
-    cta: 'Protect My Home',
+    href: '/owners/plans/home-guardian',
+    cta: 'Explore Home Guardian',
   },
   {
-    title: 'Vacant Plot Care',
+    title: 'Cypress Land Guardian',
     audience: 'For landowners',
     text: 'Periodic site inspections, cleaning and encroachment-risk reporting so your plot stays monitored and protected, with photo-documented visit updates.',
     icon: 'Trees',
-    href: '/owner-inquiry',
-    cta: 'Safeguard My Plot',
+    href: '/owners/plans/land-guardian',
+    cta: 'Explore Land Guardian',
   },
   {
-    title: 'Property Sales Listing & Assistance',
+    title: 'Cypress Property Sales',
     audience: 'For owners looking to sell',
     text: 'Want to sell your flat? We help market the property, coordinate enquiries and viewings, and assist you through the sale process.',
     icon: 'Tag',
-    href: '/owner-inquiry',
-    cta: 'List My Property for Sale',
+    href: '/owners/plans/property-sales',
+    cta: 'Explore Property Sales',
   },
 ];
 

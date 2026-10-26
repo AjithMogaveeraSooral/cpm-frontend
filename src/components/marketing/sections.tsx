@@ -14,7 +14,7 @@ export type Crumb = { label: string; href?: string };
 
 export function PageHero({ eyebrow, title, accent, description, image, breadcrumbs, children }: { eyebrow: string; title: string; accent?: string; description: string; image?: StaticImageData; breadcrumbs?: Crumb[]; children?: React.ReactNode }) {
   return <section className={s.hero}>
-    {image && <div className={s.heroArt} aria-hidden="true"><Image src={image} alt="" fill sizes="(max-width: 800px) 0px, 50vw" priority className={s.heroImg} /></div>}
+    {image && <div className={s.heroArt} aria-hidden="true"><Image src={image} alt="" fill sizes="(max-width: 800px) 0px, 50vw" quality={90} priority className={s.heroImg} /></div>}
     <div className={s.container}>
       {breadcrumbs && <nav aria-label="Breadcrumb"><ol className={s.breadcrumb}>{breadcrumbs.map((crumb) => <li key={crumb.label}>{crumb.href ? <Link href={crumb.href}>{crumb.label}</Link> : <span aria-current="page">{crumb.label}</span>}</li>)}</ol></nav>}
       <span className={s.eyebrow}>{eyebrow}</span>
@@ -89,8 +89,11 @@ export function PlanCards({ detailed = false }: { detailed?: boolean }) {
       </div>
       <ul className={s.planDetails}>{bullets.map((item) => <li key={item}><Check size={16} aria-hidden="true" />{item}</li>)}</ul>
       <div className="mt-6">{detailed
-        ? <Link href={`/owner-inquiry?plan=${slug}`} className={`${s.secondary} ${s.fullWidth}`}>Choose {plan.name}<ArrowRight size={16} aria-hidden="true" /></Link>
-        : <Link href="/owners/plans-pricing" className={`${s.secondary} ${s.fullWidth}`}>View Plan Details</Link>}</div>
+        ? <>
+          <Link href={`/owner-inquiry?plan=${slug}`} className={`${s.button} ${s.fullWidth}`}>Choose {plan.name}<ArrowRight size={16} aria-hidden="true" /></Link>
+          <div className="mt-4 text-center"><Link href={`/owners/plans/${slug}`} className={s.textLink}>Full {plan.name} details<ArrowRight size={16} aria-hidden="true" /></Link></div>
+        </>
+        : <Link href={`/owners/plans/${slug}`} className={`${s.secondary} ${s.fullWidth}`}>View Plan Details</Link>}</div>
     </article>;
   })}</div>;
 }

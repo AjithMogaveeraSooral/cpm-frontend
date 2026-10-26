@@ -3,7 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: 'Inter', system-ui, sans-serif;
+  /* --font-sans and --font-display are provided by next/font in layout.tsx
+     (Manrope + Fraunces, self-hosted). These are only fallbacks. */
+  --font-sans-fallback: 'Inter', system-ui, sans-serif;
+  --font-display-fallback: Georgia, 'Times New Roman', serif;
 
   /* Brand palette as RGB channel triplets (used as rgb(var(--x) / <alpha>)).
      :root is the default "Cypress Green" theme; [data-theme] blocks below
@@ -153,6 +156,9 @@ body {
 
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
+  font-family: var(--font-sans, var(--font-sans-fallback));
+  font-feature-settings: 'ss01', 'cv11', 'liga';
+  text-rendering: optimizeLegibility;
 }
 
 @layer base {

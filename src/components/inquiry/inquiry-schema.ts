@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export type InquiryKind = 'owner' | 'tenant';
-export const planOptions = ['Not sure yet', 'Bronze', 'Silver', 'Gold'] as const;
+export const planOptions = ['Not sure yet', 'Bronze', 'Silver', 'Gold', 'Cypress Rental Care', 'Cypress Home Guardian', 'Cypress Land Guardian', 'Cypress Property Sales'] as const;
 export const bhkOptions = ['Studio', '1 BHK', '2 BHK', '3 BHK', '4+ BHK', 'Other / discuss with Cypress'] as const;
 export const furnishingOptions = ['Unfurnished', 'Semi-furnished', 'Fully furnished', 'No preference / discuss'] as const;
 const singleLine = (label: string, max = 150) => z.string().trim().min(1, `${label} is required.`).max(max).regex(/^[^\x00-\x1f\x7f-\x9f]*$/, `${label} must be a single line.`);

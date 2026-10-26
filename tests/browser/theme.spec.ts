@@ -13,7 +13,7 @@ test('landing theme selector updates accents and both logos without changing con
   const content = await page.locator('main').textContent();
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  const logo = page.locator('header').getByRole('img', { name: 'Cypress Property Management Software' });
+  const logo = page.locator('header').getByRole('img', { name: 'Cypress Property Management', exact: true });
   const greenLogo = await logo.screenshot();
 
   for (const [id, label] of themes) {

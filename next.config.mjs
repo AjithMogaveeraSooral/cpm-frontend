@@ -24,6 +24,7 @@ const nextConfig = {
   images: {
     // Next's image optimizer needs a server; static export must serve raw images.
     unoptimized: isPages,
+    qualities: [75, 90],
     remotePatterns: [
       // S3 presigned media (bucket host is injected at deploy time).
       { protocol: 'https', hostname: '**.amazonaws.com' },

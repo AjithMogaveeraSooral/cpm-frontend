@@ -51,7 +51,12 @@ export function whatsappUrl(pathname: string) {
   if (!siteConfig.whatsapp) return undefined;
   // Fixed messages only: do not forward query strings, property IDs or personal data.
   const topic = pathname.includes('nri-property-management') ? 'NRI property management'
-    : pathname.includes('plans-pricing') ? 'the Bronze, Silver and Gold plans'
+    : pathname.includes('plans-pricing') || /\/owners\/plans\/(bronze|silver|gold)/.test(pathname) ? 'the Bronze, Silver and Gold plans'
+    : pathname.includes('/owners/plans/rental-care') ? 'Cypress Rental Care'
+    : pathname.includes('/owners/plans/home-guardian') ? 'Cypress Home Guardian'
+    : pathname.includes('/owners/plans/land-guardian') ? 'Cypress Land Guardian'
+    : pathname.includes('/owners/plans/property-sales') ? 'Cypress Property Sales'
+    : pathname.startsWith('/owners/plans') ? 'the Cypress owner plans'
     : pathname.startsWith('/tenants') || pathname === '/tenant-inquiry' || pathname === '/explore' ? 'rental homes and tenant services'
     : pathname.startsWith('/about') ? 'Cypress property management'
     : 'property management in Bengaluru';
@@ -60,7 +65,9 @@ export function whatsappUrl(pathname: string) {
 
 // Only public, deliberate destinations; do not enumerate portal records or property IDs.
 export const publicRoutes = [
-  '/', '/owner-services', '/owners/plans-pricing', '/owners/nri-property-management',
+  '/', '/owner-services', '/owners/plans', '/owners/plans-pricing', '/owners/nri-property-management',
+  '/owners/plans/bronze', '/owners/plans/silver', '/owners/plans/gold',
+  '/owners/plans/rental-care', '/owners/plans/home-guardian', '/owners/plans/land-guardian', '/owners/plans/property-sales',
   '/owners/faqs', '/tenants/find-property', '/tenants/services', '/tenants/faqs',
   '/about', '/about/founder', '/about/service-partners', '/about/application',
   '/contact', '/owner-inquiry', '/tenant-inquiry',

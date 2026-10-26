@@ -18,6 +18,12 @@
       "static/css/app/(public)/layout.css",
       "static/chunks/app/(public)/layout.js"
     ],
+    "/(public)/owners/plans/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(public)/owners/plans/page.css",
+      "static/chunks/app/(public)/owners/plans/page.js"
+    ],
     "/(public)/welcome/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",

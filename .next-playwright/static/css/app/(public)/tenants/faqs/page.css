@@ -246,6 +246,21 @@
 .pages_notice__P4uGO a { color: var(--teal); text-decoration: underline; text-underline-offset: 3px; font-weight: 650; }
 .pages_successRef__n2se_ { padding: 14px 16px; border-radius: 10px; background: var(--teal-soft); color: #064e45; font-size: 14px; }
 
+/* Consistent editorial surfaces across information pages and enquiry forms. */
+.pages_mutedBand__qc7dw, .pages_lifecycleBand__mCtT2, .pages_supportBand__zzfwS, .pages_inqPage__SPT8k { background: var(--sage-surface); }
+.pages_infoCard__Q0FOV, .pages_helpCard__hlZVW, .pages_inclGrid__kJiCo, .pages_nriCards__tIMkU article, .pages_faqList__ckJD3 details,
+.pages_sidePanel__h62ob, .pages_tsGrid__Z_SRI article, .pages_formCard__gTcif { background: var(--panel); box-shadow: var(--shadow-md); }
+.pages_audienceRow__QUbnj, .pages_nriCta__BJtBZ, .pages_dashboardCta__mPTp8, .pages_faqCtaCard__GvcuB, .pages_calculator__NpxI1 { background: var(--sage-surface); border: 1px solid var(--line); }
+.pages_estimate__aCId_, .pages_sideSteps___8VJi { background: color-mix(in srgb, var(--surface) 80%, #b9c8ae); }
+.pages_aboutMugImg__ds2eR, .pages_sofaImg__PdVQL, .pages_ctaImg__Qv1ga, .pages_inqImg__RvW8L, .pages_sideImg__YRZLS { aspect-ratio: 3 / 2; -o-object-fit: cover; object-fit: cover; }
+.pages_maintenancePhoneImg__zTxpS { max-width: 520px; aspect-ratio: 4 / 3; -o-object-fit: cover; object-fit: cover; }
+.pages_tenantCtaImg__jzbYk { aspect-ratio: 4 / 3; }
+.pages_aboutCtaGrid__euw4P, .pages_ownerCtaGrid__UIHqo { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+
+@media (max-width: 800px) {
+  .pages_aboutCtaGrid__euw4P, .pages_ownerCtaGrid__UIHqo { grid-template-columns: 1fr; gap: 28px; }
+}
+
 @media (max-width: 1100px) {
   .pages_calculator__NpxI1 { grid-template-columns: 1fr 1fr; }
   .pages_calcIntro__I0GWu { grid-column: 1 / -1; padding-bottom: 0; }

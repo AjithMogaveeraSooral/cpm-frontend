@@ -71,7 +71,7 @@ export default function OwnerServicesPage() {
           <div className={s.actions}><Link href="/owner-inquiry" className={s.button}>List Your Property<ArrowRight size={16} aria-hidden="true" /></Link></div>
         </div>
         <div className={p.ctaVisual}>
-          <Image src={ownerMgmtCta} alt="Cypress application on laptop" width={614} height={250} className={p.ctaImg} />
+          <Image src={ownerMgmtCta} alt="Accessing digital services on a smartphone — illustrative photograph" sizes="(max-width: 800px) 100vw, 50vw" className={p.ctaImg} />
         </div>
       </div>
     </Section>

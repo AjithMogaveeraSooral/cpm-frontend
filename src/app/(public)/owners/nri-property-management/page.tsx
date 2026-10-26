@@ -17,19 +17,19 @@ const cards = [
     title: 'Property Management Across Borders',
     text: 'Cypress helps with tenant sourcing, screening, rental documentation, rent tracking, maintenance coordination, inspections, renewals and move-out support.',
     image: nriCardBuilding,
-    alt: 'Bengaluru modern residential towers',
+    alt: 'Modern residential building — illustrative photograph',
   },
   {
     title: 'Digital Visibility From Anywhere',
     text: 'Through your owner dashboard, you can access property records, inspection reports, rent information and service requests, subject to your selected plan and available application features.',
     image: nriCardTablet,
-    alt: 'Owner dashboard access from abroad on tablet',
+    alt: 'Using a smartphone to stay connected — illustrative photograph',
   },
   {
     title: 'Support for NRI Documentation',
     text: 'Cypress can coordinate relevant rent statements and available TDS documentation. Tax, FEMA and banking compliance requirements vary by owner and transaction; professional advice may be needed.',
     image: nriCardStatement,
-    alt: 'Property and rent documentation statements',
+    alt: 'Reviewing and signing documents — illustrative photograph',
   },
   {
     title: 'Designed for Remote Ownership',

@@ -75,7 +75,7 @@ export default function AboutPage() {
         <div className={p.aboutMugVisual}>
           <Image
             src={aboutMug}
-            alt="Cypress mug on modern workspace table"
+            alt="Light-filled modern workspace — illustrative photograph"
             className={p.aboutMugImg}
             sizes="(max-width: 800px) 100vw, 500px"
           />

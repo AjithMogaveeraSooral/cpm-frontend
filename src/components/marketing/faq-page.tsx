@@ -72,7 +72,7 @@ export function FaqPage({ audience }: { audience: 'owner' | 'tenant' }) {
             {c.panelImage && (
               <Image
                 src={c.panelImage}
-                alt="Owner and Tenant Dashboard view"
+                alt="Staying connected using a smartphone — illustrative photograph"
                 className={p.sideImg}
                 sizes="(max-width: 1100px) 100vw, 360px"
               />

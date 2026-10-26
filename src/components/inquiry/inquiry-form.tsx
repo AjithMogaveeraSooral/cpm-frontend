@@ -122,7 +122,7 @@ export function InquiryForm({ kind }: { kind: InquiryKind }) {
           <div className={p.inqVisual}>
             <Image
               src={owner ? inquiryOwnerDesk : inquiryTenantLiving}
-              alt={owner ? 'Property owner discussing management with Cypress' : 'Tenant enjoying a comfortable rental home in Bengaluru'}
+              alt={owner ? 'Contemporary home with a landscaped courtyard — illustrative photograph' : 'Bright furnished living room — illustrative photograph'}
               className={p.inqImg}
               priority
               sizes="(max-width: 800px) 100vw, 480px"

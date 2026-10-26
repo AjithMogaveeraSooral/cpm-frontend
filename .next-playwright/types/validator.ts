@@ -297,6 +297,78 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
   type __Unused = __Check
 }
 
+// Validate ../../src/app/(public)/owners/plans/bronze/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/owners/plans/bronze">> = Specific
+  const handler = {} as typeof import("../../src/app/(public)/owners/plans/bronze/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(public)/owners/plans/gold/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/owners/plans/gold">> = Specific
+  const handler = {} as typeof import("../../src/app/(public)/owners/plans/gold/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(public)/owners/plans/home-guardian/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/owners/plans/home-guardian">> = Specific
+  const handler = {} as typeof import("../../src/app/(public)/owners/plans/home-guardian/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(public)/owners/plans/land-guardian/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/owners/plans/land-guardian">> = Specific
+  const handler = {} as typeof import("../../src/app/(public)/owners/plans/land-guardian/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(public)/owners/plans/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/owners/plans">> = Specific
+  const handler = {} as typeof import("../../src/app/(public)/owners/plans/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(public)/owners/plans/property-sales/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/owners/plans/property-sales">> = Specific
+  const handler = {} as typeof import("../../src/app/(public)/owners/plans/property-sales/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(public)/owners/plans/rental-care/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/owners/plans/rental-care">> = Specific
+  const handler = {} as typeof import("../../src/app/(public)/owners/plans/rental-care/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/(public)/owners/plans/silver/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/owners/plans/silver">> = Specific
+  const handler = {} as typeof import("../../src/app/(public)/owners/plans/silver/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/(public)/search/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/search">> = Specific

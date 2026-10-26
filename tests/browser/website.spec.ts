@@ -67,7 +67,7 @@ test('marketing home and mobile menus fit small screens', async ({ page }) => {
 test('reviewed landing uses supplied branding, portrait and functional calls to action', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
-  const logo = page.getByRole('banner').getByRole('img', { name: 'Cypress Property Management Software' });
+  const logo = page.getByRole('banner').getByRole('img', { name: 'Cypress Property Management', exact: true });
   await expect(logo).toBeVisible();
   await expect.poll(() => logo.locator('img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(logo).toHaveCSS('mask-image', /cypress-logo/);
@@ -83,7 +83,7 @@ test('reviewed landing uses supplied branding, portrait and functional calls to 
   await portrait.scrollIntoViewIfNeeded();
   await expect(portrait).toBeVisible();
   await expect.poll(() => portrait.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
-  await expect(page.locator('#application').getByRole('link', { name: 'Explore the Application' })).toHaveAttribute('href', '/about/application');
+  await expect(page.locator('#application').getByRole('link', { name: 'Explore Our Application' })).toHaveAttribute('href', '/about/application');
   await expect(page.locator('#founder')).toContainText('Founder, Cypress Property Management Services');
   await page.getByRole('navigation', { name: 'About Us footer links' }).getByRole('link', { name: 'Why I Started Cypress' }).click();
   await expect(page).toHaveURL(/about\/founder/);

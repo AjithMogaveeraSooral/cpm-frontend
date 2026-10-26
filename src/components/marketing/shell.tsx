@@ -11,9 +11,22 @@ const footerSections = [
     title: 'Owners',
     links: [
       { label: 'Property Management', href: '/owner-services' },
+      { label: 'All Owner Plans', href: '/owners/plans' },
       { label: 'Plans & Pricing', href: '/owners/plans-pricing' },
       { label: 'NRI Owners', href: '/owners/nri-property-management' },
       { label: 'FAQs', href: '/owners/faqs' },
+    ],
+  },
+  {
+    title: 'Plans',
+    links: [
+      { label: 'Bronze · 5%', href: '/owners/plans/bronze' },
+      { label: 'Silver · 10%', href: '/owners/plans/silver' },
+      { label: 'Gold · 15%', href: '/owners/plans/gold' },
+      { label: 'Cypress Rental Care', href: '/owners/plans/rental-care' },
+      { label: 'Cypress Home Guardian', href: '/owners/plans/home-guardian' },
+      { label: 'Cypress Land Guardian', href: '/owners/plans/land-guardian' },
+      { label: 'Cypress Property Sales', href: '/owners/plans/property-sales' },
     ],
   },
   {

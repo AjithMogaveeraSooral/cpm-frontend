@@ -1,5 +1,6 @@
 {
   "/page": "app/page.js",
+  "/(public)/owners/plans/page": "app/(public)/owners/plans/page.js",
   "/(public)/welcome/page": "app/(public)/welcome/page.js",
   "/(public)/owner-services/page": "app/(public)/owner-services/page.js",
   "/(public)/about/page": "app/(public)/about/page.js",
@@ -10,8 +11,8 @@
   "/(public)/tenants/faqs/page": "app/(public)/tenants/faqs/page.js",
   "/(public)/tenants/services/page": "app/(public)/tenants/services/page.js",
   "/(public)/owner-inquiry/page": "app/(public)/owner-inquiry/page.js",
+  "/(public)/tenant-inquiry/page": "app/(public)/tenant-inquiry/page.js",
   "/(public)/tenants/find-property/page": "app/(public)/tenants/find-property/page.js",
   "/(public)/about/founder/page": "app/(public)/about/founder/page.js",
-  "/(public)/tenant-inquiry/page": "app/(public)/tenant-inquiry/page.js",
   "/(public)/explore/[upid]/page": "app/(public)/explore/[upid]/page.js"
 }
