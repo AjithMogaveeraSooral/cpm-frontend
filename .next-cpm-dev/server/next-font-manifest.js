@@ -1,1 +1,1 @@
-self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{},\"appUsingSizeAdjust\":false,\"pagesUsingSizeAdjust\":false}"
+self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/Users/ajithmogaveera/CPM Application/web/src/app/layout\":[\"static/media/4c9affa5bc8f420e-s.p.woff2\",\"static/media/6e8c7cb283336a9d-s.p.woff2\",\"static/media/45d0fdf0988e07ff-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"

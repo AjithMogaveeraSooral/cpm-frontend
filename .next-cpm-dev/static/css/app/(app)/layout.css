@@ -1,0 +1,15 @@
+/*!********************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[5].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[5].use[3]!./src/components/brand-logo.module.css ***!
+  \********************************************************************************************************************************************************************************************************************************************************************************/
+.brand-logo_logo__9pl4N {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  background: linear-gradient(135deg, rgb(var(--cypress-600)), rgb(var(--cypress-800)));
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+}
+
+.brand-logo_dimensions__KbrLc { display: block; width: 100%; height: auto; opacity: 0; }
