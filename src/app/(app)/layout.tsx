@@ -18,6 +18,7 @@ import {
   UserRound,
   KeyRound,
   FolderLock,
+  ShieldCheck,
   Menu,
   X,
 } from 'lucide-react';
@@ -46,6 +47,7 @@ const nav: NavItem[] = [
   { href: '/leads', label: 'Enquiries & Leads', icon: Inbox, roles: ['cypress_admin', 'app_admin'] },
   { href: '/tenants', label: 'Tenant Directory', icon: UserRound, roles: ['cypress_admin', 'app_admin'] },
   { href: '/owners', label: 'Property Owners', icon: KeyRound, roles: ['cypress_admin', 'app_admin'] },
+  { href: '/admins', label: 'Cypress Administrators', icon: ShieldCheck, roles: ['app_admin'] },
   { href: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['cypress_admin', 'app_admin'] },
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/profile', label: 'Profile', icon: UserCircle },
@@ -91,17 +93,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [user, activeRole, currentRole]);
 
   const isAdmin = activeRole === 'cypress_admin';
+  const isSuperAdmin = isAdmin && userRoles.includes('app_admin');
   const isOwner = activeRole === 'owner';
   const isTenant = activeRole === 'tenant';
 
   // Filter visible navigation based on current active role
   const visibleNav = nav.filter((item) => {
     if (!item.roles) return true;
-    return item.roles.includes(activeRole);
+    return item.roles.includes(isSuperAdmin ? 'app_admin' : activeRole);
   });
 
   const routeRule = nav.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
-  const routeAllowed = !routeRule?.roles || routeRule.roles.includes(activeRole);
+  const routeAllowed = !routeRule?.roles || routeRule.roles.includes(isSuperAdmin ? 'app_admin' : activeRole);
 
   useEffect(() => {
     if (status === 'authenticated' && user && userRoles.length === 0) router.replace('/pending');
@@ -120,7 +123,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const displayName = user?.full_name || user?.mobile || 'Cypress User';
   const roleLabel =
-    activeRole === 'cypress_admin'
+    isSuperAdmin
+      ? 'Super Admin'
+      : activeRole === 'cypress_admin'
       ? 'Cypress Operations'
       : activeRole === 'owner'
       ? 'Property Owner'

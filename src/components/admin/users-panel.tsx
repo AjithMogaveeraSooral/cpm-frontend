@@ -58,7 +58,7 @@ type CreateValues = z.infer<typeof createSchema>;
 type EditValues = z.infer<typeof editSchema>;
 
 interface UsersPanelProps {
-  role: 'tenant' | 'owner';
+  role: 'tenant' | 'owner' | 'cypress_admin';
   title: string;
   singular: string; // e.g. "tenant" | "owner"
 }
@@ -100,7 +100,7 @@ function CreateUserForm({
   singular,
   onClose,
 }: {
-  role: 'tenant' | 'owner';
+  role: UsersPanelProps['role'];
   singular: string;
   onClose: () => void;
 }) {
@@ -123,6 +123,7 @@ function CreateUserForm({
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users', role] });
+      qc.invalidateQueries({ queryKey: ['dashboard-reports'] });
       onClose();
     },
     onError: (e) => setFormError(e instanceof ApiError ? e.message : 'Failed to create user'),
@@ -131,9 +132,10 @@ function CreateUserForm({
   return (
     <ModalShell heading={`Add ${singular}`} onClose={onClose}>
       <form onSubmit={handleSubmit((v) => create.mutate(v))} className="flex flex-col gap-4">
-        <Input label="Full name" placeholder="Jane Doe" error={errors.full_name?.message} {...register('full_name')} />
-        <Input label="Mobile number" placeholder="9876543210" error={errors.mobile?.message} {...register('mobile')} />
+        <Input id="create-user-name" label="Full name" placeholder="Jane Doe" error={errors.full_name?.message} {...register('full_name')} />
+        <Input id="create-user-mobile" label="Mobile number" placeholder="9876543210" error={errors.mobile?.message} {...register('mobile')} />
         <Input
+          id="create-user-email"
           label="Email (optional)"
           type="email"
           placeholder="jane@example.com"
@@ -141,6 +143,7 @@ function CreateUserForm({
           {...register('email')}
         />
         <Input
+          id="create-user-password"
           label="Password"
           type="password"
           placeholder="Min 8 characters"
@@ -148,6 +151,7 @@ function CreateUserForm({
           {...register('password')}
         />
         <Input
+          id="create-user-confirm-password"
           label="Confirm password"
           type="password"
           placeholder="Re-enter password"
@@ -178,7 +182,7 @@ function EditUserForm({
   user,
   onClose,
 }: {
-  role: 'tenant' | 'owner';
+  role: UsersPanelProps['role'];
   singular: string;
   user: AdminUser;
   onClose: () => void;
@@ -210,6 +214,7 @@ function EditUserForm({
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users', role] });
+      qc.invalidateQueries({ queryKey: ['dashboard-reports'] });
       onClose();
     },
     onError: (e) => setFormError(e instanceof ApiError ? e.message : 'Failed to update user'),
@@ -279,7 +284,7 @@ export function UsersPanel({ role, title, singular }: UsersPanelProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
 
-  const allowed = hasRole('cypress_admin', 'app_admin');
+  const allowed = role === 'cypress_admin' ? hasRole('app_admin') : hasRole('cypress_admin', 'app_admin');
 
   useEffect(() => {
     if (status === 'authenticated' && !allowed) router.replace('/dashboard');
@@ -292,6 +297,8 @@ export function UsersPanel({ role, title, singular }: UsersPanelProps) {
   });
 
   const rows = data?.data ?? [];
+
+  if (!allowed) return null;
 
   return (
     <div>
@@ -308,7 +315,7 @@ export function UsersPanel({ role, title, singular }: UsersPanelProps) {
       {isLoading && <p className="text-slate-500">Loading {singular}s…</p>}
       {error && <p className="text-red-600">Could not load {singular}s.</p>}
 
-      <Card className="overflow-hidden p-0">
+      <Card className="overflow-x-auto p-0">
         <table className="w-full text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>

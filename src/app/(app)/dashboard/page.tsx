@@ -29,6 +29,7 @@ import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { formatINR, formatDate } from '@/lib/utils';
 import { PayRentModal } from '@/components/pay-rent-modal';
 import { rentDueInfo, currentPeriodLabel } from '@/lib/payment';
+import { DashboardReports } from '@/components/dashboard-reports';
 
 // openReceipt opens an uploaded receipt (base64 data URL) in a new tab. Browsers
 // block navigating directly to data: URLs, so convert to a Blob URL first.
@@ -83,6 +84,7 @@ export default function DashboardPage() {
           : currentRole;
 
   const isAdmin = resolvedRole === 'cypress_admin';
+  const isSuperAdmin = isAdmin && roles.includes('app_admin');
   const isOwner = resolvedRole === 'owner';
   const isTenant = resolvedRole === 'tenant';
 
@@ -171,11 +173,11 @@ export default function DashboardPage() {
       <div className="mb-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            {isAdmin && 'Cypress Operations Console'}
+            {isAdmin && (isSuperAdmin ? 'Super Admin Dashboard' : 'Cypress Operations Console')}
             {isOwner && 'Property Owner Dashboard'}
             {isTenant && 'Tenant Resident Portal'}
             <span className="rounded-full bg-cypress-50 border border-cypress-200 px-2.5 py-0.5 text-xs font-bold text-cypress-800">
-              {isAdmin ? 'Admin View' : isOwner ? 'Landlord View' : 'Resident View'}
+              {isSuperAdmin ? 'Super Admin' : isAdmin ? 'Admin View' : isOwner ? 'Landlord View' : 'Resident View'}
             </span>
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -259,6 +261,8 @@ export default function DashboardPage() {
           </StaggerItem>
         </Stagger>
       )}
+
+      {isAdmin && <DashboardReports key={user?.id} superAdmin={isSuperAdmin} />}
 
       {/* ADMIN: Pending rent payment approvals (tenant offline "Pay Rent" submissions) */}
       {isAdmin && (

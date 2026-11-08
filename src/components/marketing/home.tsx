@@ -11,6 +11,7 @@ import skyline from '../../../public/brand/hd-bengaluru-skyline.webp';
 import nriFlight from '../../../public/brand/hd-nri-flight.webp';
 import recordBackdrop from '../../../public/brand/hd-maintenance-kitchen.webp';
 import h from './home.module.css';
+import { DashboardReports } from '@/components/dashboard-reports';
 
 export const homeMetadata = pageMetadata('Property Management Services in Bangalore | Cypress', 'Smart, transparent, app-based property management in Bengaluru. Compare GST-inclusive Bronze, Silver and Gold plans with ₹0 onboarding fees.', '/');
 
@@ -181,6 +182,8 @@ export function MarketingHome() {
     </Section>
 
     {/* Closing ──────────────────────────────────────────────────────────── */}
+    <Section id="reports"><DashboardReports publicView /></Section>
+
     <Section tone="dark" className={h.closing}>
       <Reveal className={h.closingInner}>
         <div><h2>Ready for Simpler Property Management?</h2><p className={s.lead}>Let Cypress help you manage the everyday details while keeping you informed and involved in important decisions.</p></div>

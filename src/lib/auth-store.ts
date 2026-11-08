@@ -69,7 +69,7 @@ function ensureRoleAccess(user: UserSummary, role?: Role): void {
   // The account exists but does not hold the selected portal's role. Reject so
   // the user is not routed into a different dashboard.
   tokenStore.clear();
-  const label = role === 'tenant' ? 'Tenant' : role === 'owner' ? 'Property Owner' : 'Cypress Admin';
+  const label = role === 'app_admin' ? 'Super Admin' : role === 'tenant' ? 'Tenant' : role === 'owner' ? 'Property Owner' : 'Cypress Admin';
   throw new ApiError(
     404,
     'role_not_found',
@@ -84,7 +84,10 @@ export const useAuth = create<AuthState>((set, get) => ({
   async loginWithPassword(mobile, password, role) {
     set({ status: 'loading' });
     try {
-      const { data } = await api.post<AuthResult>('/auth/login', { mobile, password }, { auth: false });
+      const credentials = mobile.trim().toLowerCase() === 'admin'
+        ? { username: mobile.trim().toLowerCase(), password }
+        : { mobile, password };
+      const { data } = await api.post<AuthResult>('/auth/login', credentials, { auth: false });
       tokenStore.set(data.tokens);
       ensureRoleAccess(data.user, role);
       set({ user: data.user, status: 'authenticated' });
